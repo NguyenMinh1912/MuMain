@@ -56,6 +56,7 @@ UI::Scaling::LayoutMode UI::Layout::ForInterface(std::uint32_t interfaceKey)
     case INTERFACE_TRADE:
     case INTERFACE_STORAGE:
     case INTERFACE_STORAGE_EXT:
+    case INTERFACE_BANK:
     case INTERFACE_MIXINVENTORY:
     case INTERFACE_COMMAND:
     case INTERFACE_PET:

@@ -114,6 +114,9 @@ enum INTERFACE_LIST
     INTERFACE_MUHELPER_SKILL_LIST,
     INTERFACE_SYSTEMLOGWINDOW,
     INTERFACE_COMMAND_LIST,
+    // The bank of the account, which is not part of the original client. Appended at the end so
+    // that no existing window id shifts.
+    INTERFACE_BANK,
     INTERFACE_END,
     INTERFACE_COUNT = INTERFACE_END - 2,
 };

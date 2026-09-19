@@ -13009,4 +13009,40 @@
   <data name="Add all points using the suggested build" xml:space="preserve">
     <value>Add all points using the suggested build</value>
   </data>
+  <data name="Bank" xml:space="preserve">
+    <value>Bank</value>
+  </data>
+  <data name="Bank storage" xml:space="preserve">
+    <value>Storage</value>
+  </data>
+  <data name="Bank market" xml:space="preserve">
+    <value>Market</value>
+  </data>
+  <data name="Bank deposit everything" xml:space="preserve">
+    <value>Deposit all</value>
+  </data>
+  <data name="Bank withdraw everything" xml:space="preserve">
+    <value>Withdraw all</value>
+  </data>
+  <data name="Bank previous page" xml:space="preserve">
+    <value>Prev</value>
+  </data>
+  <data name="Bank next page" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Bank buy offer" xml:space="preserve">
+    <value>Buy</value>
+  </data>
+  <data name="Bank cancel offer" xml:space="preserve">
+    <value>Take back</value>
+  </data>
+  <data name="Bank has no offers" xml:space="preserve">
+    <value>No offers</value>
+  </data>
+  <data name="Bank page of" xml:space="preserve">
+    <value>Page %d/%d</value>
+  </data>
+  <data name="Bank refused the request" xml:space="preserve">
+    <value>The bank refused the request</value>
+  </data>
 </root>

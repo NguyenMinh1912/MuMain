@@ -13017,4 +13017,40 @@
   <data name="Add all points using the suggested build" xml:space="preserve">
     <value>Cộng toàn bộ điểm theo build gợi ý</value>
   </data>
+  <data name="Bank" xml:space="preserve">
+    <value>Ngân hàng</value>
+  </data>
+  <data name="Bank storage" xml:space="preserve">
+    <value>Kho</value>
+  </data>
+  <data name="Bank market" xml:space="preserve">
+    <value>Chợ</value>
+  </data>
+  <data name="Bank deposit everything" xml:space="preserve">
+    <value>Gửi hết</value>
+  </data>
+  <data name="Bank withdraw everything" xml:space="preserve">
+    <value>Rút hết</value>
+  </data>
+  <data name="Bank previous page" xml:space="preserve">
+    <value>Trước</value>
+  </data>
+  <data name="Bank next page" xml:space="preserve">
+    <value>Sau</value>
+  </data>
+  <data name="Bank buy offer" xml:space="preserve">
+    <value>Mua</value>
+  </data>
+  <data name="Bank cancel offer" xml:space="preserve">
+    <value>Lấy về</value>
+  </data>
+  <data name="Bank has no offers" xml:space="preserve">
+    <value>Chưa có ai rao bán</value>
+  </data>
+  <data name="Bank page of" xml:space="preserve">
+    <value>Trang %d/%d</value>
+  </data>
+  <data name="Bank refused the request" xml:space="preserve">
+    <value>Ngân hàng đã từ chối yêu cầu</value>
+  </data>
 </root>

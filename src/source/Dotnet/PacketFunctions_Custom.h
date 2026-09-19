@@ -17,6 +17,7 @@
 
 #include <coreclr_delegates.h>
 
+#include "Network/Server/BankProtocol.h"
 #include "PacketFunctions_CommonEnums.h"
 
 /// <summary>
@@ -100,6 +101,86 @@ public:
     /// and only performs it after this answer arrived.
     /// </remarks>
     void SendResetConfirmation(BYTE resetTypeIndex, bool accepted);
+
+    /// <summary>
+    /// Sends the request to move value between the character and the bank of its account.
+    /// </summary>
+    /// <param name="deposit">True to move the value into the bank, false to take it out.</param>
+    /// <param name="currency">The currency to move.</param>
+    /// <param name="amount">The amount to move; always positive.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x01).</remarks>
+    void SendBankMoveValue(bool deposit, Net::Bank::Currency currency, int64_t amount);
+
+    /// <summary>
+    /// Sends the request to transfer an amount of a currency to another account.
+    /// </summary>
+    /// <param name="receiverName">The character or login name of the receiver.</param>
+    /// <param name="currency">The currency to send.</param>
+    /// <param name="amount">The amount the receiver gets; the fee is charged on top of it.</param>
+    /// <param name="note">The message for the receiver.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x02).</remarks>
+    void SendBankTransferValue(const wchar_t* receiverName, Net::Bank::Currency currency, int64_t amount,
+                               const wchar_t* note);
+
+    /// <summary>
+    /// Sends the request to transfer an item of the bank to another account.
+    /// </summary>
+    /// <param name="receiverName">The character or login name of the receiver.</param>
+    /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>
+    /// <param name="note">The message for the receiver.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x03).</remarks>
+    void SendBankTransferItem(const wchar_t* receiverName, BYTE bankSlot, const wchar_t* note);
+
+    /// <summary>
+    /// Sends the request to offer an item of the bank on the market.
+    /// </summary>
+    /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>
+    /// <param name="priceCurrency">The currency the seller wants to be paid in.</param>
+    /// <param name="price">The price.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x04).</remarks>
+    void SendMarketRegisterItem(BYTE bankSlot, Net::Bank::Currency priceCurrency, int64_t price);
+
+    /// <summary>
+    /// Sends the request to offer an amount of a currency of the bank on the market.
+    /// </summary>
+    /// <param name="offeredCurrency">The offered currency.</param>
+    /// <param name="offeredAmount">The offered amount.</param>
+    /// <param name="priceCurrency">The currency the seller wants to be paid in.</param>
+    /// <param name="price">The price.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x05).</remarks>
+    void SendMarketRegisterCurrency(Net::Bank::Currency offeredCurrency, int64_t offeredAmount,
+                                    Net::Bank::Currency priceCurrency, int64_t price);
+
+    /// <summary>
+    /// Sends the request to buy an offer of the market.
+    /// </summary>
+    /// <param name="listingId">The identifier of the offer, as it arrived.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x06).</remarks>
+    void SendMarketBuy(const BYTE* listingId);
+
+    /// <summary>
+    /// Sends the request to take an own offer off the market.
+    /// </summary>
+    /// <param name="listingId">The identifier of the offer, as it arrived.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x07).</remarks>
+    void SendMarketCancel(const BYTE* listingId);
+
+    /// <summary>
+    /// Sends the request to list the offers of the market.
+    /// </summary>
+    /// <param name="page">The page to show, starting at 0.</param>
+    /// <param name="priceCurrencyFilter">The currency the price has to be in; Net::Bank::AnyCurrency for any.</param>
+    /// <param name="ownOffersOnly">True to list only the offers of this account.</param>
+    /// <param name="nameFilter">A text which the name of the offer has to contain.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x08).</remarks>
+    void SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly, const wchar_t* nameFilter);
+
+    /// <summary>
+    /// Sends the request to show a page of the ledger of the bank.
+    /// </summary>
+    /// <param name="page">The page to show, starting at 0.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x09).</remarks>
+    void SendBankLedger(BYTE page);
 };
 
 /// <summary>

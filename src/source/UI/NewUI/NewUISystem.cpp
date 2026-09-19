@@ -27,6 +27,7 @@ namespace
         case INTERFACE_INVENTORY_EXT:
         case INTERFACE_STORAGE:
         case INTERFACE_STORAGE_EXT:
+        case INTERFACE_BANK:
         case INTERFACE_CHARACTER:
         case INTERFACE_NPCSHOP:
         case INTERFACE_MIXINVENTORY:
@@ -62,6 +63,7 @@ CNewUISystem::CNewUISystem()
     m_pNewGuardWindow = nullptr;
     m_pNewGatemanWindow = nullptr;
     m_pNewGateSwitchWindow = nullptr;
+    m_pNewBankWindow = nullptr;
     m_pNewStorageInventory = nullptr;
     m_pNewStorageInventoryExt = nullptr;
     m_pNewGuildInfoWindow = nullptr;
@@ -265,6 +267,10 @@ bool CNewUISystem::LoadMainSceneInterface()
 
     m_pNewStorageInventory = new CNewUIStorageInventory;
     if (m_pNewStorageInventory->Create(m_pNewUIMng, 260, 0) == false)
+        return false;
+
+    m_pNewBankWindow = new CNewUIBankWindow;
+    if (m_pNewBankWindow->Create(m_pNewUIMng, 260, 0) == false)
         return false;
 
     m_pNewStorageInventoryExt = new CNewUIStorageInventoryExt;
@@ -577,6 +583,7 @@ void CNewUISystem::UnloadMainSceneInterface()
     SAFE_DELETE(m_pNewMyShopInventory);
     SAFE_DELETE(m_pNewGuildMakeWindow);
     SAFE_DELETE(m_pNewGuildInfoWindow);
+    SAFE_DELETE(m_pNewBankWindow);
     SAFE_DELETE(m_pNewStorageInventory);
     SAFE_DELETE(m_pNewMixInventory);
     SAFE_DELETE(m_pNewCastleWindow);
@@ -830,6 +837,14 @@ void CNewUISystem::Show(DWORD dwKey)
         g_pNPCShop->OpenningProcess();
         m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY);
         g_pNPCShop->SetPos(PanelColumnX(2), 0);
+        g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, true);
+    }
+    else if (dwKey == INTERFACE_BANK)
+    {
+        HideAllGroupA();
+        m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY);
+        g_pBankWindow->SetPos(PanelColumnX(2), 0);
+        Show(INTERFACE_HERO_POSITION_INFO);
         g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, true);
     }
     else if (dwKey == INTERFACE_STORAGE)
@@ -1334,6 +1349,14 @@ void CNewUISystem::Hide(DWORD dwKey)
         g_pMyInventory->SetPos(PanelColumnX(1), 0);
         Show(INTERFACE_HERO_POSITION_INFO);
     }
+    else if (dwKey == INTERFACE_BANK)
+    {
+        // The server keeps the npc dialog open until the client says it closed it.
+        g_pBankWindow->ClosingProcess();
+        g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, false);
+        m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY, false);
+        Show(INTERFACE_HERO_POSITION_INFO);
+    }
     else if (dwKey == INTERFACE_STORAGE)
     {
         g_pStorageInventoryExt->ProcessClosing();
@@ -1636,6 +1659,7 @@ void CNewUISystem::HideAllGroupA()
         INTERFACE_MUHELPER_SKILL_LIST,
         INTERFACE_MIXINVENTORY,
         INTERFACE_STORAGE,
+        INTERFACE_BANK,
         INTERFACE_NPCSHOP,
         INTERFACE_MYSHOP_INVENTORY,
         INTERFACE_PURCHASESHOP_INVENTORY,
@@ -1696,6 +1720,7 @@ void CNewUISystem::HideAllGroupB()
 
         INTERFACE_MIXINVENTORY,
         INTERFACE_STORAGE,
+        INTERFACE_BANK,
         INTERFACE_NPCSHOP,
         INTERFACE_MYSHOP_INVENTORY,
         INTERFACE_PURCHASESHOP_INVENTORY,
@@ -2209,6 +2234,11 @@ CNewUIGatemanWindow* CNewUISystem::GetUI_NewGatemanWindow() const
 CNewUIGateSwitchWindow* CNewUISystem::GetUI_NewGateSwitchWindow() const
 {
     return m_pNewGateSwitchWindow;
+}
+
+CNewUIBankWindow* CNewUISystem::GetUI_NewBankWindow() const
+{
+    return m_pNewBankWindow;
 }
 
 CNewUIStorageInventory* CNewUISystem::GetUI_NewStorageInventory() const

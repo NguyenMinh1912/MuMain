@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Core/Utilities/Log/MuLogger.h"
+#include "Network/Server/BankPackets.h"
 #include "UI/Chat/Chat.h"
 #include <memory>
 #include "UI/Legacy/UIManager.h"
@@ -1762,6 +1763,10 @@ void ReceiveTradeInventoryExtended(std::span<const BYTE> ReceiveBuffer)
         g_pMixInventory->SetMixState(SEASON3B::CNewUIMixInventory::MIX_FINISHED);
         g_pMixInventory->DeleteAllItems();
     }
+    else if (Data->SubCode == Net::Bank::WindowValue)
+    {
+        g_pBankWindow->DeleteAllItems();
+    }
     else
     {
         for (auto& i : ShopInventory)
@@ -1795,6 +1800,10 @@ void ReceiveTradeInventoryExtended(std::span<const BYTE> ReceiveBuffer)
         if (Data->SubCode == 3 || Data->SubCode == 5)
         {
             g_pMixInventory->InsertItem(itemindex, itemData);
+        }
+        else if (Data->SubCode == Net::Bank::WindowValue)
+        {
+            g_pBankWindow->InsertItem(itemindex, itemData);
         }
         else
         {
@@ -6309,6 +6318,10 @@ BOOL ReceiveEquipmentItemExtended(std::span<const BYTE> ReceiveBuffer)
                 g_pStorageInventoryExt->ProcessToReceiveStorageItems(Data->Index, itemData);
             }
         }
+        else if (storageType == STORAGE_TYPE::BANK)
+        {
+            g_pBankWindow->ProcessToReceiveBankItems(Data->Index, itemData);
+        }
         if (storageType == STORAGE_TYPE::CHAOS_MIX ||
             (storageType >= STORAGE_TYPE::TRAINER_MIX && storageType <= STORAGE_TYPE::DETACH_SOCKET_MIX))
         {
@@ -6416,6 +6429,11 @@ BOOL ReceiveTalk(const BYTE* ReceiveBuffer, BOOL bEncrypted)
     {
     case 2:
         g_pNewUISystem->Show(SEASON3B::INTERFACE_STORAGE);
+        break;
+
+    case Net::Bank::WindowValue:
+        // Not part of the original protocol: the bank of the account.
+        g_pNewUISystem->Show(SEASON3B::INTERFACE_BANK);
         break;
 
     case 3:
@@ -14370,6 +14388,12 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         }
     }
     break;
+    case Net::Bank::PacketCode:
+        // Not part of the original protocol: the bank of the account and the market between
+        // players. The whole group is parsed in one place, which only fills the store the bank
+        // dialog draws from.
+        Net::Bank::HandlePacket(received_span);
+        break;
     case 0x3F:
     {
         int subcode;

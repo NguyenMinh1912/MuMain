@@ -90,6 +90,172 @@ void PacketFunctions_ClientToServer_Custom::SendResetConfirmation(BYTE resetType
     dotnet_SendResetConfirmation(this->GetHandle(), resetTypeIndex, accepted ? 1 : 0);
 }
 
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankMoveValueFn)(int32_t, BYTE, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendBankMoveValue(bool deposit, Net::Bank::Currency currency,
+                                                              int64_t amount)
+{
+    static SendBankMoveValueFn dotnet_SendBankMoveValue = nullptr;
+    if (!dotnet_SendBankMoveValue)
+    {
+        dotnet_SendBankMoveValue = LoadManagedSymbol<SendBankMoveValueFn>("ConnectionManager_SendBankMoveValue");
+        if (!dotnet_SendBankMoveValue)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankMoveValue(this->GetHandle(), deposit ? 1 : 0, static_cast<BYTE>(currency), amount);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankTransferValueFn)(int32_t, const char16_t*, BYTE, int64_t,
+                                                                 const char16_t*);
+
+void PacketFunctions_ClientToServer_Custom::SendBankTransferValue(const wchar_t* receiverName,
+                                                                  Net::Bank::Currency currency, int64_t amount,
+                                                                  const wchar_t* note)
+{
+    static SendBankTransferValueFn dotnet_SendBankTransferValue = nullptr;
+    if (!dotnet_SendBankTransferValue)
+    {
+        dotnet_SendBankTransferValue =
+            LoadManagedSymbol<SendBankTransferValueFn>("ConnectionManager_SendBankTransferValue");
+        if (!dotnet_SendBankTransferValue)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankTransferValue(this->GetHandle(), MU_C16(receiverName), static_cast<BYTE>(currency), amount,
+                                 MU_C16(note));
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankTransferItemFn)(int32_t, const char16_t*, BYTE, const char16_t*);
+
+void PacketFunctions_ClientToServer_Custom::SendBankTransferItem(const wchar_t* receiverName, BYTE bankSlot,
+                                                                 const wchar_t* note)
+{
+    static SendBankTransferItemFn dotnet_SendBankTransferItem = nullptr;
+    if (!dotnet_SendBankTransferItem)
+    {
+        dotnet_SendBankTransferItem =
+            LoadManagedSymbol<SendBankTransferItemFn>("ConnectionManager_SendBankTransferItem");
+        if (!dotnet_SendBankTransferItem)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankTransferItem(this->GetHandle(), MU_C16(receiverName), bankSlot, MU_C16(note));
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketRegisterItemFn)(int32_t, BYTE, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketRegisterItem(BYTE bankSlot, Net::Bank::Currency priceCurrency,
+                                                                   int64_t price)
+{
+    static SendMarketRegisterItemFn dotnet_SendMarketRegisterItem = nullptr;
+    if (!dotnet_SendMarketRegisterItem)
+    {
+        dotnet_SendMarketRegisterItem =
+            LoadManagedSymbol<SendMarketRegisterItemFn>("ConnectionManager_SendMarketRegisterItem");
+        if (!dotnet_SendMarketRegisterItem)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketRegisterItem(this->GetHandle(), bankSlot, static_cast<BYTE>(priceCurrency), price);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketRegisterCurrencyFn)(int32_t, BYTE, int64_t, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketRegisterCurrency(Net::Bank::Currency offeredCurrency,
+                                                                       int64_t offeredAmount,
+                                                                       Net::Bank::Currency priceCurrency, int64_t price)
+{
+    static SendMarketRegisterCurrencyFn dotnet_SendMarketRegisterCurrency = nullptr;
+    if (!dotnet_SendMarketRegisterCurrency)
+    {
+        dotnet_SendMarketRegisterCurrency =
+            LoadManagedSymbol<SendMarketRegisterCurrencyFn>("ConnectionManager_SendMarketRegisterCurrency");
+        if (!dotnet_SendMarketRegisterCurrency)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketRegisterCurrency(this->GetHandle(), static_cast<BYTE>(offeredCurrency), offeredAmount,
+                                      static_cast<BYTE>(priceCurrency), price);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListingRequestFn)(int32_t, const BYTE*);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketBuy(const BYTE* listingId)
+{
+    static SendMarketListingRequestFn dotnet_SendMarketBuy = nullptr;
+    if (!dotnet_SendMarketBuy)
+    {
+        dotnet_SendMarketBuy = LoadManagedSymbol<SendMarketListingRequestFn>("ConnectionManager_SendMarketBuy");
+        if (!dotnet_SendMarketBuy)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketBuy(this->GetHandle(), listingId);
+}
+
+void PacketFunctions_ClientToServer_Custom::SendMarketCancel(const BYTE* listingId)
+{
+    static SendMarketListingRequestFn dotnet_SendMarketCancel = nullptr;
+    if (!dotnet_SendMarketCancel)
+    {
+        dotnet_SendMarketCancel = LoadManagedSymbol<SendMarketListingRequestFn>("ConnectionManager_SendMarketCancel");
+        if (!dotnet_SendMarketCancel)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketCancel(this->GetHandle(), listingId);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListFn)(int32_t, BYTE, BYTE, BYTE, const char16_t*);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly,
+                                                           const wchar_t* nameFilter)
+{
+    static SendMarketListFn dotnet_SendMarketList = nullptr;
+    if (!dotnet_SendMarketList)
+    {
+        dotnet_SendMarketList = LoadManagedSymbol<SendMarketListFn>("ConnectionManager_SendMarketList");
+        if (!dotnet_SendMarketList)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketList(this->GetHandle(), page, priceCurrencyFilter, ownOffersOnly ? 1 : 0, MU_C16(nameFilter));
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankLedgerFn)(int32_t, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendBankLedger(BYTE page)
+{
+    static SendBankLedgerFn dotnet_SendBankLedger = nullptr;
+    if (!dotnet_SendBankLedger)
+    {
+        dotnet_SendBankLedger = LoadManagedSymbol<SendBankLedgerFn>("ConnectionManager_SendBankLedger");
+        if (!dotnet_SendBankLedger)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankLedger(this->GetHandle(), page);
+}
+
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendAuthenticateExtFn)(int32_t, uint16_t, uint32_t);
 
 void PacketFunctions_ChatServer_Custom::SendAuthenticateExt(uint16_t roomId, uint32_t token)

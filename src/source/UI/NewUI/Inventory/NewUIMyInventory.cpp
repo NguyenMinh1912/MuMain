@@ -480,6 +480,7 @@ bool CNewUIMyInventory::UpdateMouseEvent()
             || g_pNewUISystem->IsVisible(INTERFACE_BLOODCASTLE) == true
             || g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY) == true
             || g_pNewUISystem->IsVisible(INTERFACE_STORAGE) == true
+            || g_pNewUISystem->IsVisible(INTERFACE_BANK) == true
             || g_pNewUISystem->IsVisible(INTERFACE_MYSHOP_INVENTORY) == true
             || g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_LUCKYITEMWND) == true
             || g_pNewUISystem->IsVisible(INTERFACE_PURCHASESHOP_INVENTORY) == true)

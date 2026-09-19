@@ -341,6 +341,8 @@ void SEASON3B::CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span
 {
     InsertItem(nIndex, pbyItemPacket);
 
+    CNewUIInventoryCtrl::DeletePickedItem();
+
     // The server confirmed the move, so the item may leave the box of the inventory it came from.
     if (m_depositSourceSlot >= MAX_EQUIPMENT_INDEX && m_depositSourceSlot < MAX_MY_INVENTORY_INDEX)
     {
@@ -620,7 +622,7 @@ bool SEASON3B::CNewUIBankWindow::Update()
 
     // A dialog is opened from here and never from the callback of another one, so a message box is
     // never created while the box which asked for it is being destroyed.
-    if (m_pendingInput != PendingInput::None && g_MessageBox && !g_MessageBox->IsVisible())
+    if (m_pendingInput != PendingInput::None && g_MessageBox && g_MessageBox->IsEmpty())
     {
         OpenPendingInput();
     }
@@ -915,6 +917,29 @@ bool SEASON3B::CNewUIBankWindow::ProcessTileSelection()
     if (slot < 0)
     {
         return false;
+    }
+
+    if (g_pPickedItem && g_pPickedItem->GetItem())
+    {
+        if (SEASON3B::IsRelease(VK_LBUTTON))
+        {
+            ITEM* pPicked = g_pPickedItem->GetItem();
+            const int sourceIndex = g_pPickedItem->GetSourceLinealPos();
+            if (m_boxes[slot] == nullptr && sourceIndex >= 0)
+            {
+                // The item left its own storage when it was picked up, so nothing of it has to be
+                // removed here once the server answers.
+                SendRequestEquipmentItem(g_pPickedItem->GetSourceStorageType(), sourceIndex, pPicked,
+                                         STORAGE_TYPE::BANK, slot);
+                PlayBuffer(SOUND_GET_ITEM01);
+            }
+            else
+            {
+                CNewUIInventoryCtrl::BackupPickedItem();
+            }
+        }
+
+        return true;
     }
 
     if (SEASON3B::IsRelease(VK_LBUTTON))

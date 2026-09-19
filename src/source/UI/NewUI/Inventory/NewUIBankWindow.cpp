@@ -27,7 +27,7 @@ namespace
 /// item names of the jewels are, so they are kept here instead of in the translation tables.
 /// </remarks>
 const wchar_t* const CurrencyNames[] = {
-    L"Zen",      L"WCoinC", L"WCoinP",   L"Goblin",  L"Bless", L"Soul",  L"Life",
+    L"Zen",      L"WCoinC", L"WCoinP",   L"Goblin",  L"Bless", L"Soul",   L"Life",
     L"Creation", L"Chaos",  L"Guardian", L"Harmony", L"Lower", L"Higher",
 };
 
@@ -61,14 +61,8 @@ constexpr int64_t Everything = std::numeric_limits<int32_t>::max();
 } // namespace
 
 CNewUIBankWindow::CNewUIBankWindow()
-    : m_pNewUIMng(nullptr)
-    , m_pInventoryCtrl(nullptr)
-    , m_page(Page::Storage)
-    , m_selectedCurrency(0)
-    , m_selectedOffer(0)
-    , m_selectedSlot(NoSlot)
-    , m_pendingInput(PendingInput::None)
-    , m_transferCarriesItem(false)
+    : m_pNewUIMng(nullptr), m_pInventoryCtrl(nullptr), m_page(Page::Storage), m_selectedCurrency(0), m_selectedOffer(0),
+      m_selectedSlot(NoSlot), m_pendingInput(PendingInput::None), m_transferCarriesItem(false)
 {
     m_Pos.x = m_Pos.y = 0;
 }
@@ -89,8 +83,8 @@ bool CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_pNewUIMng->AddUIObj(INTERFACE_BANK, this);
 
     m_pInventoryCtrl = new CNewUIInventoryCtrl;
-    if (false == m_pInventoryCtrl->Create(STORAGE_TYPE::BANK, g_pNewUI3DRenderMng, g_pNewItemMng, this,
-                                          x + GridOffsetX, y + GridOffsetY, BANK_COLUMNS, BANK_ROWS))
+    if (false == m_pInventoryCtrl->Create(STORAGE_TYPE::BANK, g_pNewUI3DRenderMng, g_pNewItemMng, this, x + GridOffsetX,
+                                          y + GridOffsetY, BANK_COLUMNS, BANK_ROWS))
     {
         SAFE_DELETE(m_pInventoryCtrl);
         return false;
@@ -666,7 +660,7 @@ void CNewUIBankWindow::SetTransferReceiver(const wchar_t* receiverName)
     if (SocketClient && RequireSelectedItem())
     {
         SocketClient->ToGameServer()->SendBankTransferItem(m_transferReceiver.c_str(),
-                                                          static_cast<BYTE>(m_selectedSlot), L"");
+                                                           static_cast<BYTE>(m_selectedSlot), L"");
     }
 }
 

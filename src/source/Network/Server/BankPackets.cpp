@@ -84,7 +84,8 @@ void ReadOperationResult(const std::span<const BYTE> packet, const int offset)
         return;
     }
 
-    Store::Instance().SetLastResult(static_cast<Operation>(packet[offset]), static_cast<ResultCode>(packet[offset + 1]));
+    Store::Instance().SetLastResult(static_cast<Operation>(packet[offset]),
+                                    static_cast<ResultCode>(packet[offset + 1]));
 }
 
 void ReadOffers(const std::span<const BYTE> packet, const int offset)

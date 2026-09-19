@@ -25,6 +25,12 @@ public unsafe partial class ConnectionManager
     private static readonly Xor3Encryptor Xor3Encryptor = new(0);
 
     /// <summary>
+    /// Fills the fields of a packet of the bank behind its header.
+    /// </summary>
+    /// <param name="packet">The packet.</param>
+    private delegate void PacketWriter(Span<byte> packet);
+
+    /// <summary>
     /// Sends a <see cref="LoginLongPassword" /> to this connection.
     /// </summary>
     /// <param name="handle">The handle of the connection.</param>
@@ -460,9 +466,4 @@ public unsafe partial class ConnectionManager
         SendBankPacket(handle, what, subCode, 20, packet => id.CopyTo(packet[4..]));
     }
 
-    /// <summary>
-    /// Fills the fields of a packet of the bank behind its header.
-    /// </summary>
-    /// <param name="packet">The packet.</param>
-    private delegate void PacketWriter(Span<byte> packet);
 }

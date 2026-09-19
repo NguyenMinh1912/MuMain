@@ -270,7 +270,8 @@ bool CNewUISystem::LoadMainSceneInterface()
         return false;
 
     m_pNewBankWindow = new CNewUIBankWindow;
-    if (m_pNewBankWindow->Create(m_pNewUIMng, m_pNewUI3DRenderMng, 260, 0) == false)
+    if (m_pNewBankWindow->Create(m_pNewUIMng, m_pNewUI3DRenderMng,
+                                 PanelColumnX(1) - CNewUIBankWindow::GetWindowWidth(), 0) == false)
         return false;
 
     m_pNewStorageInventoryExt = new CNewUIStorageInventoryExt;
@@ -842,7 +843,7 @@ void CNewUISystem::Show(DWORD dwKey)
     else if (dwKey == INTERFACE_BANK)
     {
         m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY);
-        g_pBankWindow->SetPos(PanelColumnX(2), 0);
+        g_pBankWindow->SetPos(PanelColumnX(1) - CNewUIBankWindow::GetWindowWidth(), 0);
         Show(INTERFACE_HERO_POSITION_INFO);
         g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, true);
 

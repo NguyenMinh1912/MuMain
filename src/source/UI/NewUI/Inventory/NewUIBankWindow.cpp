@@ -148,23 +148,24 @@ void SEASON3B::CNewUIBankWindow::SetPos(int x, int y)
 
 void SEASON3B::CNewUIBankWindow::LayoutButtons()
 {
-    m_abtn[BTN_TAB_ITEMS].ChangeButtonInfo(m_Pos.x + 6, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
-    m_abtn[BTN_TAB_VALUES].ChangeButtonInfo(m_Pos.x + 90, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
-    m_abtn[BTN_TAB_MARKET].ChangeButtonInfo(m_Pos.x + 174, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    m_abtn[BTN_TAB_ITEMS].ChangeButtonInfo(m_Pos.x + 8, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    m_abtn[BTN_TAB_VALUES].ChangeButtonInfo(m_Pos.x + 132, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    m_abtn[BTN_TAB_MARKET].ChangeButtonInfo(m_Pos.x + 256, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
 
-    m_abtn[BTN_PREV].ChangeButtonInfo(m_Pos.x + 14, m_Pos.y + PAGE_ROW_TOP, 40, 20);
-    m_abtn[BTN_NEXT].ChangeButtonInfo(m_Pos.x + 206, m_Pos.y + PAGE_ROW_TOP, 40, 20);
+    m_abtn[BTN_PREV].ChangeButtonInfo(m_Pos.x + 20, m_Pos.y + PAGE_ROW_TOP, 44, 20);
+    m_abtn[BTN_NEXT].ChangeButtonInfo(m_Pos.x + 316, m_Pos.y + PAGE_ROW_TOP, 44, 20);
 
-    m_abtn[BTN_TAKE_ITEM].ChangeButtonInfo(m_Pos.x + 48, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_OFFER_ITEM].ChangeButtonInfo(m_Pos.x + 138, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    // Two buttons stand in the middle, three fill the row.
+    m_abtn[BTN_TAKE_ITEM].ChangeButtonInfo(m_Pos.x + 86, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_OFFER_ITEM].ChangeButtonInfo(m_Pos.x + 198, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
 
-    m_abtn[BTN_DEPOSIT].ChangeButtonInfo(m_Pos.x + 10, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_WITHDRAW].ChangeButtonInfo(m_Pos.x + 93, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_OFFER_VALUE].ChangeButtonInfo(m_Pos.x + 176, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_DEPOSIT].ChangeButtonInfo(m_Pos.x + 32, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_WITHDRAW].ChangeButtonInfo(m_Pos.x + 142, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_OFFER_VALUE].ChangeButtonInfo(m_Pos.x + 252, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
 
-    m_abtn[BTN_BUY].ChangeButtonInfo(m_Pos.x + 10, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_CANCEL_OFFER].ChangeButtonInfo(m_Pos.x + 93, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_MINE].ChangeButtonInfo(m_Pos.x + 176, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_BUY].ChangeButtonInfo(m_Pos.x + 32, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_CANCEL_OFFER].ChangeButtonInfo(m_Pos.x + 142, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_MINE].ChangeButtonInfo(m_Pos.x + 252, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
 }
 
 float SEASON3B::CNewUIBankWindow::GetLayerDepth()
@@ -760,6 +761,18 @@ void SEASON3B::CNewUIBankWindow::GetTileRect(int slotOnPage, RECT& rect) const
     rect.bottom = rect.top + TILE_SIZE;
 }
 
+int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
+{
+    const bool isMoney = currency < MONEY_CURRENCY_COUNT;
+    const int rowInGroup = isMoney ? currency : currency - MONEY_CURRENCY_COUNT;
+    return m_Pos.y + CONTENT_TOP + (isMoney ? MONEY_ROWS_TOP : JEWEL_ROWS_TOP) + rowInGroup * LIST_LINE_HEIGHT;
+}
+
+int SEASON3B::CNewUIBankWindow::GetOfferRowTop(int row) const
+{
+    return m_Pos.y + CONTENT_TOP + MONEY_ROWS_TOP + row * LIST_LINE_HEIGHT;
+}
+
 int SEASON3B::CNewUIBankWindow::GetTileAtCursor() const
 {
     for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
@@ -798,11 +811,9 @@ bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
 {
     for (int currency = 0; currency < static_cast<int>(Net::Bank::Currency::Count); ++currency)
     {
-        const int group = currency < MONEY_CURRENCY_COUNT ? 0 : 1;
-        const int rowInGroup = group == 0 ? currency : currency - MONEY_CURRENCY_COUNT;
-        const int top = m_Pos.y + CONTENT_TOP + (group == 0 ? 18 : 106) + rowInGroup * LIST_LINE_HEIGHT;
+        const int top = GetCurrencyRowTop(currency);
 
-        if (SEASON3B::CheckMouseIn(m_Pos.x + 10, top, static_cast<int>(BANK_WIDTH) - 20, LIST_LINE_HEIGHT))
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, static_cast<int>(BANK_WIDTH) - 32, LIST_LINE_HEIGHT))
         {
             if (SEASON3B::IsRelease(VK_LBUTTON))
             {
@@ -824,8 +835,8 @@ bool SEASON3B::CNewUIBankWindow::ProcessOfferSelection()
 
     for (int row = 0; row < rows; ++row)
     {
-        const int top = m_Pos.y + CONTENT_TOP + 18 + row * LIST_LINE_HEIGHT;
-        if (SEASON3B::CheckMouseIn(m_Pos.x + 10, top, static_cast<int>(BANK_WIDTH) - 20, LIST_LINE_HEIGHT))
+        const int top = GetOfferRowTop(row);
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, static_cast<int>(BANK_WIDTH) - 32, LIST_LINE_HEIGHT))
         {
             if (SEASON3B::IsRelease(VK_LBUTTON))
             {
@@ -936,7 +947,7 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
         mu_swprintf(szText, L"%ls", GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency)));
     }
 
-    g_pRenderText->RenderText(m_Pos.x + 10, m_Pos.y + INFO_ROW_TOP, szText, static_cast<int>(BANK_WIDTH) - 20, 0,
+    g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + INFO_ROW_TOP, szText, static_cast<int>(BANK_WIDTH) - 40, 0,
                               RT3_SORT_CENTER);
 
     int used = 0;
@@ -950,10 +961,10 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
 
     g_pRenderText->SetTextColor(200, 200, 200, 255);
     mu_swprintf(szText, I18N::Game::BankBoxCount, used, BANK_TOTAL_SLOTS);
-    g_pRenderText->RenderText(m_Pos.x + 12, m_Pos.y + PAGE_ROW_TOP + 22, szText, 100, 0);
+    g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + INFO_ROW_TOP - 18, szText, 140, 0);
 
     mu_swprintf(szText, I18N::Game::BankPageOf, m_itemPage + 1, ITEM_PAGE_COUNT);
-    g_pRenderText->RenderText(m_Pos.x + 60, m_Pos.y + PAGE_ROW_TOP + 3, szText, 140, 0, RT3_SORT_CENTER);
+    g_pRenderText->RenderText(m_Pos.x + 70, m_Pos.y + PAGE_ROW_TOP + 3, szText, 240, 0, RT3_SORT_CENTER);
 
     m_abtn[BTN_PREV].Render();
     m_abtn[BTN_NEXT].Render();
@@ -974,8 +985,8 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
     {
         g_pRenderText->SetFont(g_hFontBold);
         g_pRenderText->SetTextColor(160, 200, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + 12, m_Pos.y + CONTENT_TOP + (group == 0 ? 0 : 88),
-                                  group == 0 ? I18N::Game::BankMoneyGroup : I18N::Game::BankJewelGroup, 200, 0);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + CONTENT_TOP + (group == 0 ? 0 : JEWEL_HEADER_TOP),
+                                  group == 0 ? I18N::Game::BankMoneyGroup : I18N::Game::BankJewelGroup, 240, 0);
 
         const int first = group == 0 ? 0 : MONEY_CURRENCY_COUNT;
         const int last = group == 0 ? MONEY_CURRENCY_COUNT : static_cast<int>(Net::Bank::Currency::Count);
@@ -983,12 +994,11 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
         g_pRenderText->SetFont(g_hFont);
         for (int currency = first; currency < last; ++currency)
         {
-            const int rowInGroup = currency - first;
-            const int top = m_Pos.y + CONTENT_TOP + (group == 0 ? 18 : 106) + rowInGroup * LIST_LINE_HEIGHT;
+            const int top = GetCurrencyRowTop(currency);
 
             if (currency == m_selectedCurrency)
             {
-                RenderColorQuadARGB(static_cast<float>(m_Pos.x + 10), static_cast<float>(top), BANK_WIDTH - 20.f,
+                RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top), BANK_WIDTH - 32.f,
                                     static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
                 EndRenderColor();
                 g_pRenderText->SetTextColor(255, 230, 150, 255);
@@ -998,13 +1008,13 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
                 g_pRenderText->SetTextColor(220, 220, 220, 255);
             }
 
-            g_pRenderText->RenderText(m_Pos.x + 16, top + 1,
-                                      GetCurrencyName(static_cast<Net::Bank::Currency>(currency)), 150, 0);
+            g_pRenderText->RenderText(m_Pos.x + 26, top + 2,
+                                      GetCurrencyName(static_cast<Net::Bank::Currency>(currency)), 180, 0);
 
             FormatAmount(Net::Bank::Store::Instance().GetBalance(static_cast<Net::Bank::Currency>(currency)), szAmount,
                          std::size(szAmount));
             mu_swprintf(szText, L"%ls", szAmount);
-            g_pRenderText->RenderText(m_Pos.x + 100, top + 1, szText, 144, 0, RT3_SORT_RIGHT);
+            g_pRenderText->RenderText(m_Pos.x + 206, top + 2, szText, 148, 0, RT3_SORT_RIGHT);
         }
     }
 
@@ -1021,9 +1031,10 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     g_pRenderText->SetBgColor(0);
     g_pRenderText->SetFont(g_hFontBold);
     g_pRenderText->SetTextColor(160, 200, 255, 255);
-    g_pRenderText->RenderText(m_Pos.x + 16, m_Pos.y + CONTENT_TOP, I18N::Game::BankSellerColumn, 60, 0);
-    g_pRenderText->RenderText(m_Pos.x + 76, m_Pos.y + CONTENT_TOP, I18N::Game::BankItemColumn, 100, 0);
-    g_pRenderText->RenderText(m_Pos.x + 176, m_Pos.y + CONTENT_TOP, I18N::Game::BankPriceColumn, 68, 0, RT3_SORT_RIGHT);
+    g_pRenderText->RenderText(m_Pos.x + 26, m_Pos.y + CONTENT_TOP, I18N::Game::BankSellerColumn, 90, 0);
+    g_pRenderText->RenderText(m_Pos.x + 116, m_Pos.y + CONTENT_TOP, I18N::Game::BankItemColumn, 150, 0);
+    g_pRenderText->RenderText(m_Pos.x + 236, m_Pos.y + CONTENT_TOP, I18N::Game::BankPriceColumn, 118, 0,
+                              RT3_SORT_RIGHT);
 
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
     g_pRenderText->SetFont(g_hFont);
@@ -1031,19 +1042,19 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     if (offers.empty())
     {
         g_pRenderText->SetTextColor(180, 180, 180, 255);
-        g_pRenderText->RenderText(m_Pos.x + 10, m_Pos.y + CONTENT_TOP + 60, I18N::Game::BankHasNoOffers,
-                                  static_cast<int>(BANK_WIDTH) - 20, 0, RT3_SORT_CENTER);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + CONTENT_TOP + 80, I18N::Game::BankHasNoOffers,
+                                  static_cast<int>(BANK_WIDTH) - 40, 0, RT3_SORT_CENTER);
     }
 
     const int rows = static_cast<int>(offers.size()) < MARKET_ROWS ? static_cast<int>(offers.size()) : MARKET_ROWS;
     for (int row = 0; row < rows; ++row)
     {
         const Net::Bank::Offer& offer = offers[row];
-        const int top = m_Pos.y + CONTENT_TOP + 18 + row * LIST_LINE_HEIGHT;
+        const int top = GetOfferRowTop(row);
 
         if (row == m_selectedOffer)
         {
-            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 10), static_cast<float>(top), BANK_WIDTH - 20.f,
+            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top), BANK_WIDTH - 32.f,
                                 static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
             EndRenderColor();
             g_pRenderText->SetTextColor(255, 230, 150, 255);
@@ -1053,18 +1064,18 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
             g_pRenderText->SetTextColor(220, 220, 220, 255);
         }
 
-        g_pRenderText->RenderText(m_Pos.x + 16, top + 1, offer.SellerName.c_str(), 60, 0);
-        g_pRenderText->RenderText(m_Pos.x + 76, top + 1, offer.OfferName.c_str(), 100, 0);
+        g_pRenderText->RenderText(m_Pos.x + 26, top + 2, offer.SellerName.c_str(), 90, 0);
+        g_pRenderText->RenderText(m_Pos.x + 116, top + 2, offer.OfferName.c_str(), 150, 0);
 
         FormatAmount(offer.PriceAmount, szAmount, std::size(szAmount));
         mu_swprintf(szText, L"%ls %ls", szAmount, GetCurrencyName(offer.PriceCurrency));
-        g_pRenderText->RenderText(m_Pos.x + 176, top + 1, szText, 68, 0, RT3_SORT_RIGHT);
+        g_pRenderText->RenderText(m_Pos.x + 236, top + 2, szText, 118, 0, RT3_SORT_RIGHT);
     }
 
     g_pRenderText->SetTextColor(200, 200, 200, 255);
     mu_swprintf(szText, I18N::Game::BankPageOf, Net::Bank::Store::Instance().GetOfferPage() + 1,
                 Net::Bank::Store::Instance().GetOfferPageCount());
-    g_pRenderText->RenderText(m_Pos.x + 60, m_Pos.y + PAGE_ROW_TOP + 3, szText, 140, 0, RT3_SORT_CENTER);
+    g_pRenderText->RenderText(m_Pos.x + 70, m_Pos.y + PAGE_ROW_TOP + 3, szText, 240, 0, RT3_SORT_CENTER);
 
     m_abtn[BTN_MINE].ChangeTextColor(m_ownOffersOnly ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
 

@@ -48,6 +48,15 @@ public:
     /// <summary>How many boxes the bank has, which has to match what the server is configured with.</summary>
     static constexpr int BANK_TOTAL_SLOTS = 100;
 
+    /// <summary>
+    /// Gets how wide the window is, so that whoever places it can put it beside the inventory
+    /// instead of on top of it.
+    /// </summary>
+    static constexpr int GetWindowWidth()
+    {
+        return static_cast<int>(BANK_WIDTH);
+    }
+
     CNewUIBankWindow();
     ~CNewUIBankWindow() override;
 
@@ -161,11 +170,11 @@ private:
         MAX_BTN
     };
 
-    static constexpr float BANK_WIDTH = 260.0f;
-    static constexpr float BANK_HEIGHT = 380.0f;
+    static constexpr float BANK_WIDTH = 380.0f;
+    static constexpr float BANK_HEIGHT = 462.0f;
 
     /// <summary>The tiles of one page of the item boxes.</summary>
-    static constexpr int TILE_SIZE = 48;
+    static constexpr int TILE_SIZE = 68;
     static constexpr int TILE_COLUMNS = 5;
     static constexpr int TILE_ROWS = 4;
     static constexpr int ITEMS_PER_PAGE = TILE_COLUMNS * TILE_ROWS;
@@ -173,19 +182,24 @@ private:
 
     /// <summary>Where the rows of the window stand, relative to its own corner.</summary>
     static constexpr int TAB_ROW_TOP = 28;
-    static constexpr int TAB_WIDTH = 82;
+    static constexpr int TAB_WIDTH = 120;
     static constexpr int TAB_HEIGHT = 24;
     static constexpr int CONTENT_TOP = 56;
-    static constexpr int TILE_ORIGIN_X = 10;
-    static constexpr int INFO_ROW_TOP = 252;
-    static constexpr int PAGE_ROW_TOP = 272;
-    static constexpr int BUTTON_ROW_TOP = 298;
-    static constexpr int BUTTON_WIDTH = 74;
+    static constexpr int TILE_ORIGIN_X = 20;
+    static constexpr int INFO_ROW_TOP = 334;
+    static constexpr int PAGE_ROW_TOP = 354;
+    static constexpr int BUTTON_ROW_TOP = 380;
+    static constexpr int BUTTON_WIDTH = 96;
     static constexpr int BUTTON_HEIGHT = 26;
 
-    /// <summary>How many rows of the market and how tall they are.</summary>
-    static constexpr int MARKET_ROWS = 11;
-    static constexpr int LIST_LINE_HEIGHT = 16;
+    /// <summary>How many rows the lists have and how tall one of them is.</summary>
+    static constexpr int MARKET_ROWS = 13;
+    static constexpr int LIST_LINE_HEIGHT = 18;
+
+    /// <summary>Where the first row of each of the two groups of currencies stands.</summary>
+    static constexpr int MONEY_ROWS_TOP = 22;
+    static constexpr int JEWEL_HEADER_TOP = 106;
+    static constexpr int JEWEL_ROWS_TOP = 128;
 
     void InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot);
     void LayoutButtons();
@@ -213,6 +227,12 @@ private:
 
     /// <summary>Gets where a box of the shown page is drawn.</summary>
     void GetTileRect(int slotOnPage, RECT& rect) const;
+
+    /// <summary>Gets where the row of a currency is drawn, which is also where it is clicked.</summary>
+    int GetCurrencyRowTop(int currency) const;
+
+    /// <summary>Gets where a row of the market is drawn, which is also where it is clicked.</summary>
+    int GetOfferRowTop(int row) const;
 
     /// <summary>Tells the player to pick a box first, when none is picked.</summary>
     bool HasSelectedItem();

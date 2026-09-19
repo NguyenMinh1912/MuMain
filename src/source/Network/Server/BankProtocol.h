@@ -47,11 +47,7 @@ enum class Currency : BYTE
     JewelOfLife = 6,
     JewelOfCreation = 7,
     JewelOfChaos = 8,
-    JewelOfGuardian = 9,
-    JewelOfHarmony = 10,
-    LowerRefineStone = 11,
-    HigherRefineStone = 12,
-    Count = 13,
+    Count = 9,
 };
 
 /// <summary>Which request an answer of the server belongs to.</summary>
@@ -59,8 +55,6 @@ enum class Operation : BYTE
 {
     Deposit = 0,
     Withdrawal = 1,
-    TransferValue = 2,
-    TransferItem = 3,
     MarketRegister = 4,
     MarketBuy = 5,
     MarketCancel = 6,

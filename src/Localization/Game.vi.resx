@@ -13021,16 +13021,16 @@
     <value>Ngân hàng</value>
   </data>
   <data name="Bank storage" xml:space="preserve">
-    <value>Kho</value>
+    <value>Đồ</value>
   </data>
   <data name="Bank market" xml:space="preserve">
     <value>Chợ</value>
   </data>
   <data name="Bank deposit everything" xml:space="preserve">
-    <value>Gửi hết</value>
+    <value>Gửi vào</value>
   </data>
   <data name="Bank withdraw everything" xml:space="preserve">
-    <value>Rút hết</value>
+    <value>Rút ra</value>
   </data>
   <data name="Bank previous page" xml:space="preserve">
     <value>Trước</value>
@@ -13056,25 +13056,76 @@
   <data name="Bank enter the price" xml:space="preserve">
     <value>Nhập giá bán</value>
   </data>
-  <data name="Bank enter the receiver" xml:space="preserve">
-    <value>Nhập tên người nhận</value>
-  </data>
   <data name="Bank enter the amount" xml:space="preserve">
     <value>Nhập số lượng</value>
   </data>
   <data name="Bank offer" xml:space="preserve">
     <value>Rao bán</value>
   </data>
-  <data name="Bank send item" xml:space="preserve">
-    <value>Gửi đồ</value>
-  </data>
-  <data name="Bank send value" xml:space="preserve">
-    <value>Gửi tiền</value>
-  </data>
   <data name="Bank select an item first" xml:space="preserve">
-    <value>Hãy bấm chuột phải vào một món đồ trong ngân hàng trước</value>
+    <value>Hãy chọn một ô đồ trước</value>
   </data>
   <data name="Bank short label" xml:space="preserve">
     <value>Bank</value>
+  </data>
+  <data name="Bank take item" xml:space="preserve">
+    <value>Rút đồ</value>
+  </data>
+  <data name="Bank values" xml:space="preserve">
+    <value>Ngọc &amp; Tiền</value>
+  </data>
+  <data name="Bank money group" xml:space="preserve">
+    <value>TIỀN</value>
+  </data>
+  <data name="Bank jewel group" xml:space="preserve">
+    <value>NGỌC</value>
+  </data>
+  <data name="Bank seller column" xml:space="preserve">
+    <value>Người bán</value>
+  </data>
+  <data name="Bank item column" xml:space="preserve">
+    <value>Món hàng</value>
+  </data>
+  <data name="Bank price column" xml:space="preserve">
+    <value>Giá</value>
+  </data>
+  <data name="Bank my offers only" xml:space="preserve">
+    <value>Chỉ đồ của tôi</value>
+  </data>
+  <data name="Bank select a value first" xml:space="preserve">
+    <value>Hãy chọn một loại tiền trước</value>
+  </data>
+  <data name="Bank is full" xml:space="preserve">
+    <value>Ngân hàng đã đầy</value>
+  </data>
+  <data name="Bank box count" xml:space="preserve">
+    <value>%d/%d ô</value>
+  </data>
+  <data name="Bank currency zen" xml:space="preserve">
+    <value>Zen</value>
+  </data>
+  <data name="Bank currency wcoin c" xml:space="preserve">
+    <value>WCoin C</value>
+  </data>
+  <data name="Bank currency wcoin p" xml:space="preserve">
+    <value>WCoin P</value>
+  </data>
+  <data name="Bank currency goblin points" xml:space="preserve">
+    <value>Điểm Goblin</value>
+  </data>
+  <data name="Bank currency jewel of bless" xml:space="preserve">
+    <value>Ngọc Phúc Lành</value>
+  </data>
+  <data name="Bank currency jewel of soul" xml:space="preserve">
+    <value>Ngọc Tâm Linh</value>
+  </data>
+  <data name="Bank currency jewel of life" xml:space="preserve">
+    <value>Ngọc Sinh Mệnh</value>
+  </data>
+  <data name="Bank currency jewel of creation" xml:space="preserve">
+    <value>Ngọc Sáng Tạo</value>
+  </data>
+  <data name="Bank currency jewel of chaos" xml:space="preserve">
+    <value>Ngọc Hỗn Nguyên</value>
   </data>
 </root>

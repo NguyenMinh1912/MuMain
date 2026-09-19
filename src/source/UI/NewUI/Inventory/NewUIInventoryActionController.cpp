@@ -151,6 +151,12 @@ bool CNewUIInventoryActionController::HandleRightClick(CNewUIInventoryCtrl* targ
         return HandleStorageAutoMove(targetControl);
     }
 
+    // The bank has no drag and drop at all: a right click on an item is how it is put in.
+    if (g_pNewUISystem->IsVisible(INTERFACE_BANK))
+    {
+        return g_pBankWindow->ProcessMyInvenItemAutoMove(targetControl);
+    }
+
     if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) && g_pNewUISystem->IsVisible(INTERFACE_INVENTORY))
     {
         return HandleSellToNPC(targetControl);

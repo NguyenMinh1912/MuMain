@@ -112,26 +112,6 @@ public:
     void SendBankMoveValue(bool deposit, Net::Bank::Currency currency, int64_t amount);
 
     /// <summary>
-    /// Sends the request to transfer an amount of a currency to another account.
-    /// </summary>
-    /// <param name="receiverName">The character or login name of the receiver.</param>
-    /// <param name="currency">The currency to send.</param>
-    /// <param name="amount">The amount the receiver gets; the fee is charged on top of it.</param>
-    /// <param name="note">The message for the receiver.</param>
-    /// <remarks>Not part of the original protocol (0xFB, 0x02).</remarks>
-    void SendBankTransferValue(const wchar_t* receiverName, Net::Bank::Currency currency, int64_t amount,
-                               const wchar_t* note);
-
-    /// <summary>
-    /// Sends the request to transfer an item of the bank to another account.
-    /// </summary>
-    /// <param name="receiverName">The character or login name of the receiver.</param>
-    /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>
-    /// <param name="note">The message for the receiver.</param>
-    /// <remarks>Not part of the original protocol (0xFB, 0x03).</remarks>
-    void SendBankTransferItem(const wchar_t* receiverName, BYTE bankSlot, const wchar_t* note);
-
-    /// <summary>
     /// Sends the request to offer an item of the bank on the market.
     /// </summary>
     /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>

@@ -3,92 +3,83 @@
 //*****************************************************************************
 
 #include "stdafx.h"
+
 #include "UI/NewUI/Inventory/NewUIBankWindow.h"
-#include "I18N/All.h"
 
 #include "Audio/DSPlaySound.h"
 #include "Engine/Object/ZzzInventory.h"
+#include "I18N/All.h"
 #include "Network/Server/BankStore.h"
-#include "Network/Server/WSclient.h"
+#include "Network/Server/ServerListManager.h"
+#include "Render/Textures/ZzzOpenglUtil.h"
+#include "UI/Chat/Chat.h"
 #include "UI/NewUI/Dialogs/NewUICustomMessageBox.h"
+#include "UI/NewUI/Inventory/NewUIItemMng.h"
+#include "UI/NewUI/NewUICommon.h"
 #include "UI/NewUI/NewUISystem.h"
-
-#include <algorithm>
-#include <limits>
-
-using namespace SEASON3B;
 
 namespace
 {
-/// <summary>
-/// The names of the currencies, in the order of <see cref="Net::Bank::Currency"/>.
-/// </summary>
-/// <remarks>
-/// Product names, not sentences: they are the same in every language of the client, the way the
-/// item names of the jewels are, so they are kept here instead of in the translation tables.
-/// </remarks>
-const wchar_t* const CurrencyNames[] = {
-    L"Zen",      L"WCoinC", L"WCoinP",   L"Goblin",  L"Bless", L"Soul",  L"Life",
-    L"Creation", L"Chaos",  L"Guardian", L"Harmony", L"Lower", L"Higher",
-};
+/// <summary>The tint of the box or the row the player picked.</summary>
+constexpr unsigned int PICKED_COLOR = 0x80FFC83Cu;
 
-/// <summary>The geometry of the window. Everything is relative to its top left corner.</summary>
-constexpr int GridOffsetX = 15;
-constexpr int GridOffsetY = 34;
-constexpr int ItemPageLabelY = 170;
+/// <summary>The tint of the box or the row the cursor is over.</summary>
+constexpr unsigned int HOVERED_COLOR = 0x33FFFFFFu;
 
-constexpr int BalanceTop = 188;
-constexpr int BalanceLineHeight = 14;
-constexpr int BalanceRows = 7;
-constexpr int BalanceColumnWidth = 83;
-constexpr int BalanceMarginX = 12;
+/// <summary>The tint of an empty box, so that the tiles are visible before anything is in them.</summary>
+constexpr unsigned int EMPTY_BOX_COLOR = 0x40202830u;
 
-constexpr int ButtonRowOneY = 300;
-constexpr int ButtonRowTwoY = 328;
-constexpr int ButtonRowThreeY = 356;
-constexpr int ButtonWidth = 53;
-constexpr int ButtonHeight = 23;
-constexpr int ButtonSpacing = 58;
-constexpr int FirstButtonX = 10;
+/// <summary>How many of the currencies are money; the rest are jewels.</summary>
+constexpr int MONEY_CURRENCY_COUNT = 4;
 
-constexpr int OfferListTop = 40;
-constexpr int OfferLineHeight = 34;
-constexpr int OfferListBottom = 380;
-constexpr int MarketPageLabelY = 390;
-constexpr int TextMargin = 12;
+/// <summary>Writes an amount with a separator every three digits, which is how balances are read.</summary>
+void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
+{
+    wchar_t digits[32] = {0};
+    mu_swprintf(digits, L"%lld", static_cast<long long>(amount < 0 ? -amount : amount));
 
-/// <summary>How many offers fit into the list of the market page.</summary>
-constexpr int MaxVisibleOffers = (OfferListBottom - OfferListTop) / OfferLineHeight;
+    const size_t digitCount = wcslen(digits);
+    size_t written = 0;
+    if (amount < 0 && written + 1 < textLength)
+    {
+        text[written++] = L'-';
+    }
 
-/// <summary>The value which means "no box is picked".</summary>
-constexpr int NoSlot = -1;
+    for (size_t i = 0; i < digitCount && written + 1 < textLength; ++i)
+    {
+        if (i > 0 && (digitCount - i) % 3 == 0)
+        {
+            text[written++] = L'.';
+        }
 
-/// <summary>
-/// What a deposit asks for when the player wants to move everything: the server treats the amount
-/// as an upper bound and moves what the character actually has.
-/// </summary>
-constexpr int64_t Everything = std::numeric_limits<int32_t>::max();
+        if (written + 1 < textLength)
+        {
+            text[written++] = digits[i];
+        }
+    }
 
-/// <summary>How many currencies there are, which is how many lines the balances have.</summary>
-constexpr int CurrencyCount = static_cast<int>(Net::Bank::Currency::Count);
+    text[written] = L'\0';
+}
 } // namespace
 
-CNewUIBankWindow::CNewUIBankWindow()
-    : m_pNewUIMng(nullptr), m_pInventoryCtrl(nullptr), m_page(Page::Storage), m_itemPage(0), m_selectedCurrency(0),
-      m_selectedOffer(0), m_pendingSlot(NoSlot), m_autoMoveItem(nullptr), m_pendingInput(PendingInput::None),
-      m_transferCarriesItem(false)
+SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
+    : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_page(Page::Items), m_itemPage(0), m_selectedCurrency(0),
+      m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1), m_takeSourceSlot(-1), m_ownOffersOnly(false),
+      m_pendingInput(PendingInput::None), m_offerCarriesItem(true), m_offerAmount(0)
 {
-    m_Pos.x = m_Pos.y = 0;
+    m_Pos.x = 0;
+    m_Pos.y = 0;
+    m_boxes.fill(nullptr);
 }
 
-CNewUIBankWindow::~CNewUIBankWindow()
+SEASON3B::CNewUIBankWindow::~CNewUIBankWindow()
 {
     Release();
 }
 
-bool CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, int x, int y)
+bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRenderMng* pNewUI3DRenderMng, int x, int y)
 {
-    if (nullptr == pNewUIMng || nullptr == g_pNewUI3DRenderMng || nullptr == g_pNewItemMng)
+    if (pNewUIMng == nullptr || pNewUI3DRenderMng == nullptr || g_pNewItemMng == nullptr)
     {
         return false;
     }
@@ -96,36 +87,41 @@ bool CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_pNewUIMng = pNewUIMng;
     m_pNewUIMng->AddUIObj(INTERFACE_BANK, this);
 
-    m_pInventoryCtrl = new CNewUIInventoryCtrl;
-    if (false == m_pInventoryCtrl->Create(STORAGE_TYPE::BANK, g_pNewUI3DRenderMng, g_pNewItemMng, this,
-                                          x + GridOffsetX, y + GridOffsetY, BANK_COLUMNS, BANK_PAGE_ROWS))
-    {
-        SAFE_DELETE(m_pInventoryCtrl);
-        return false;
-    }
-
-    LoadImages();
-
-    InitButton(&m_abtn[BTN_PAGE], I18N::Game::BankMarket);
-    InitButton(&m_abtn[BTN_PREV], I18N::Game::BankPreviousPage);
-    InitButton(&m_abtn[BTN_NEXT], I18N::Game::BankNextPage);
-    InitButton(&m_abtn[BTN_DEPOSIT], I18N::Game::BankDepositEverything);
-    InitButton(&m_abtn[BTN_WITHDRAW], I18N::Game::BankWithdrawEverything);
-    InitButton(&m_abtn[BTN_SEND_VALUE], I18N::Game::BankSendValue);
-    InitButton(&m_abtn[BTN_OFFER], I18N::Game::BankOffer);
-    InitButton(&m_abtn[BTN_SEND_ITEM], I18N::Game::BankSendItem);
+    m_pNewUI3DRenderMng = pNewUI3DRenderMng;
+    m_pNewUI3DRenderMng->Add3DRenderObj(this, INVENTORY_CAMERA_Z_ORDER);
 
     SetPos(x, y);
+
+    InitButton(&m_abtn[BTN_TAB_ITEMS], &I18N::Game::BankStorage);
+    InitButton(&m_abtn[BTN_TAB_VALUES], &I18N::Game::BankValues);
+    InitButton(&m_abtn[BTN_TAB_MARKET], &I18N::Game::BankMarket);
+    InitButton(&m_abtn[BTN_PREV], &I18N::Game::BankPreviousPage);
+    InitButton(&m_abtn[BTN_NEXT], &I18N::Game::BankNextPage);
+    InitButton(&m_abtn[BTN_TAKE_ITEM], &I18N::Game::BankTakeItem);
+    InitButton(&m_abtn[BTN_OFFER_ITEM], &I18N::Game::BankOffer);
+    InitButton(&m_abtn[BTN_DEPOSIT], &I18N::Game::BankDepositEverything);
+    InitButton(&m_abtn[BTN_WITHDRAW], &I18N::Game::BankWithdrawEverything);
+    InitButton(&m_abtn[BTN_OFFER_VALUE], &I18N::Game::BankOffer);
+    InitButton(&m_abtn[BTN_BUY], &I18N::Game::BankBuyOffer);
+    InitButton(&m_abtn[BTN_CANCEL_OFFER], &I18N::Game::BankCancelOffer);
+    InitButton(&m_abtn[BTN_MINE], &I18N::Game::BankMyOffersOnly);
+
+    LayoutButtons();
+
     Show(false);
 
     return true;
 }
 
-void CNewUIBankWindow::Release()
+void SEASON3B::CNewUIBankWindow::Release()
 {
-    UnloadImages();
+    DeleteAllItems();
 
-    SAFE_DELETE(m_pInventoryCtrl);
+    if (m_pNewUI3DRenderMng)
+    {
+        m_pNewUI3DRenderMng->Remove3DRenderObj(this);
+        m_pNewUI3DRenderMng = nullptr;
+    }
 
     if (m_pNewUIMng)
     {
@@ -134,128 +130,391 @@ void CNewUIBankWindow::Release()
     }
 }
 
-void CNewUIBankWindow::SetPos(int x, int y)
+void SEASON3B::CNewUIBankWindow::InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot)
 {
-    m_Pos.x = x;
-    m_Pos.y = y;
-
-    if (m_pInventoryCtrl)
-    {
-        m_pInventoryCtrl->SetPos(x + GridOffsetX, y + GridOffsetY);
-    }
-
-    m_abtn[BTN_PAGE].ChangeButtonInfo(x + FirstButtonX, y + ButtonRowOneY, ButtonWidth, ButtonHeight);
-    m_abtn[BTN_PREV].ChangeButtonInfo(x + FirstButtonX + ButtonSpacing, y + ButtonRowOneY, ButtonWidth, ButtonHeight);
-    m_abtn[BTN_NEXT].ChangeButtonInfo(x + FirstButtonX + 2 * ButtonSpacing, y + ButtonRowOneY, ButtonWidth,
-                                      ButtonHeight);
-
-    m_abtn[BTN_DEPOSIT].ChangeButtonInfo(x + FirstButtonX, y + ButtonRowTwoY, ButtonWidth, ButtonHeight);
-    m_abtn[BTN_WITHDRAW].ChangeButtonInfo(x + FirstButtonX + ButtonSpacing, y + ButtonRowTwoY, ButtonWidth,
-                                          ButtonHeight);
-    m_abtn[BTN_SEND_VALUE].ChangeButtonInfo(x + FirstButtonX + 2 * ButtonSpacing, y + ButtonRowTwoY, ButtonWidth,
-                                            ButtonHeight);
-
-    m_abtn[BTN_OFFER].ChangeButtonInfo(x + FirstButtonX, y + ButtonRowThreeY, ButtonWidth, ButtonHeight);
-    m_abtn[BTN_SEND_ITEM].ChangeButtonInfo(x + FirstButtonX + ButtonSpacing, y + ButtonRowThreeY, ButtonWidth,
-                                           ButtonHeight);
-}
-
-void CNewUIBankWindow::InitButton(CNewUIButton* pButton, const wchar_t* caption)
-{
-    pButton->ChangeText(caption);
+    pButton->ChangeText(captionSlot);
     pButton->ChangeTextBackColor(RGBA(255, 255, 255, 0));
     pButton->ChangeButtonImgState(true, IMAGE_BANK_BUTTON, true);
-    pButton->ChangeButtonInfo(0, 0, ButtonWidth, ButtonHeight);
     pButton->ChangeImgColor(BUTTON_STATE_UP, RGBA(255, 255, 255, 255));
     pButton->ChangeImgColor(BUTTON_STATE_DOWN, RGBA(255, 255, 255, 255));
 }
 
-void CNewUIBankWindow::OpeningProcess()
+void SEASON3B::CNewUIBankWindow::SetPos(int x, int y)
 {
-    m_page = Page::Storage;
+    m_Pos.x = x;
+    m_Pos.y = y;
+    LayoutButtons();
+}
+
+void SEASON3B::CNewUIBankWindow::LayoutButtons()
+{
+    m_abtn[BTN_TAB_ITEMS].ChangeButtonInfo(m_Pos.x + 6, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    m_abtn[BTN_TAB_VALUES].ChangeButtonInfo(m_Pos.x + 90, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    m_abtn[BTN_TAB_MARKET].ChangeButtonInfo(m_Pos.x + 174, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+
+    m_abtn[BTN_PREV].ChangeButtonInfo(m_Pos.x + 14, m_Pos.y + PAGE_ROW_TOP, 40, 20);
+    m_abtn[BTN_NEXT].ChangeButtonInfo(m_Pos.x + 206, m_Pos.y + PAGE_ROW_TOP, 40, 20);
+
+    m_abtn[BTN_TAKE_ITEM].ChangeButtonInfo(m_Pos.x + 48, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_OFFER_ITEM].ChangeButtonInfo(m_Pos.x + 138, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+
+    m_abtn[BTN_DEPOSIT].ChangeButtonInfo(m_Pos.x + 10, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_WITHDRAW].ChangeButtonInfo(m_Pos.x + 93, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_OFFER_VALUE].ChangeButtonInfo(m_Pos.x + 176, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+
+    m_abtn[BTN_BUY].ChangeButtonInfo(m_Pos.x + 10, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_CANCEL_OFFER].ChangeButtonInfo(m_Pos.x + 93, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    m_abtn[BTN_MINE].ChangeButtonInfo(m_Pos.x + 176, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+}
+
+float SEASON3B::CNewUIBankWindow::GetLayerDepth()
+{
+    return 2.2f;
+}
+
+bool SEASON3B::CNewUIBankWindow::IsVisible() const
+{
+    return CNewUIObj::IsVisible();
+}
+
+void SEASON3B::CNewUIBankWindow::OpeningProcess()
+{
+    m_page = Page::Items;
     m_itemPage = 0;
-    m_selectedOffer = 0;
-    CancelPendingInput();
+    m_selectedSlot = -1;
+    m_selectedOffer = -1;
+    m_depositSourceSlot = -1;
+    m_takeSourceSlot = -1;
+    m_pendingInput = PendingInput::None;
 
-    m_abtn[BTN_PAGE].ChangeText(I18N::Game::BankMarket);
-    m_abtn[BTN_DEPOSIT].ChangeText(I18N::Game::BankDepositEverything);
-    m_abtn[BTN_WITHDRAW].ChangeText(I18N::Game::BankWithdrawEverything);
-
-    if (SocketClient)
-    {
-        SocketClient->ToGameServer()->SendBankDialog(true);
-    }
+    SocketClient->ToGameServer()->SendBankDialog(true);
 }
 
-void CNewUIBankWindow::ClosingProcess()
+void SEASON3B::CNewUIBankWindow::ClosingProcess()
 {
-    if (SocketClient)
-    {
-        SocketClient->ToGameServer()->SendBankDialog(false);
-    }
+    SocketClient->ToGameServer()->SendBankDialog(false);
 
-    CancelPendingInput();
-    m_autoMoveItem = nullptr;
+    DeleteAllItems();
+    m_selectedSlot = -1;
+    m_selectedOffer = -1;
+    m_depositSourceSlot = -1;
+    m_takeSourceSlot = -1;
+    m_pendingInput = PendingInput::None;
 }
 
-bool CNewUIBankWindow::UpdateMouseEvent()
+bool SEASON3B::CNewUIBankWindow::InsertItem(int iIndex, std::span<const BYTE> pbyItemPacket)
 {
-    if (m_page == Page::Storage && m_pInventoryCtrl && false == m_pInventoryCtrl->UpdateMouseEvent())
+    if (iIndex < 0 || iIndex >= BANK_TOTAL_SLOTS)
     {
         return false;
     }
 
-    if (m_page == Page::Storage)
+    ClearBox(iIndex);
+
+    ITEM* pNewItem = g_pNewItemMng->CreateItem(pbyItemPacket);
+    if (pNewItem == nullptr)
     {
-        ProcessInventoryCtrl();
+        return false;
+    }
+
+    m_boxes[iIndex] = pNewItem;
+    return true;
+}
+
+void SEASON3B::CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span<const BYTE> pbyItemPacket)
+{
+    InsertItem(nIndex, pbyItemPacket);
+
+    // The server confirmed the move, so the item may leave the box of the inventory it came from.
+    if (m_depositSourceSlot >= MAX_EQUIPMENT_INDEX && m_depositSourceSlot < MAX_MY_INVENTORY_INDEX)
+    {
+        g_pMyInventory->DeleteItem(m_depositSourceSlot);
+    }
+    else if (m_depositSourceSlot >= MAX_MY_INVENTORY_INDEX && m_depositSourceSlot < MAX_MY_INVENTORY_EX_INDEX)
+    {
+        g_pMyInventoryExt->DeleteItem(m_depositSourceSlot);
+    }
+
+    m_depositSourceSlot = -1;
+}
+
+void SEASON3B::CNewUIBankWindow::DeleteAllItems()
+{
+    for (int slot = 0; slot < BANK_TOTAL_SLOTS; ++slot)
+    {
+        ClearBox(slot);
+    }
+
+    m_selectedSlot = -1;
+}
+
+void SEASON3B::CNewUIBankWindow::ClearBox(int slot)
+{
+    if (slot < 0 || slot >= BANK_TOTAL_SLOTS)
+    {
+        return;
+    }
+
+    if (m_boxes[slot] != nullptr)
+    {
+        if (g_pNewItemMng)
+        {
+            g_pNewItemMng->DeleteItem(m_boxes[slot]);
+        }
+
+        m_boxes[slot] = nullptr;
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::ProcessAutoMoveSuccess()
+{
+    if (m_takeSourceSlot < 0)
+    {
+        return;
+    }
+
+    ClearBox(m_takeSourceSlot);
+    if (m_selectedSlot == m_takeSourceSlot)
+    {
+        m_selectedSlot = -1;
+    }
+
+    m_takeSourceSlot = -1;
+}
+
+bool SEASON3B::CNewUIBankWindow::ProcessMyInvenItemAutoMove(CNewUIInventoryCtrl* sourceCtrl)
+{
+    if (!IsVisible())
+    {
+        return false;
+    }
+
+    if (g_pPickedItem && g_pPickedItem->GetItem())
+    {
+        return false;
+    }
+
+    if (m_depositSourceSlot >= 0)
+    {
+        // A move is still on its way; a second one would take the same box of the bank.
+        return false;
+    }
+
+    if (sourceCtrl == nullptr)
+    {
+        sourceCtrl = g_pMyInventory->GetInventoryCtrl();
+    }
+
+    if (sourceCtrl == nullptr)
+    {
+        return false;
+    }
+
+    ITEM* pItemObj = sourceCtrl->FindItemAtPt(MouseX, MouseY);
+    if (pItemObj == nullptr)
+    {
+        return false;
+    }
+
+    if (pItemObj->Type == ITEM_WIZARDS_RING)
+    {
+        return false;
+    }
+
+    int freeBox = -1;
+    for (int slot = 0; slot < BANK_TOTAL_SLOTS; ++slot)
+    {
+        if (m_boxes[slot] == nullptr)
+        {
+            freeBox = slot;
+            break;
+        }
+    }
+
+    if (freeBox < 0)
+    {
+        g_pChatListBox->AddText(L"", I18N::Game::BankIsFull, SEASON3B::TYPE_ERROR_MESSAGE);
+        return false;
+    }
+
+    const int nSrcIndex = sourceCtrl->GetIndexByItem(pItemObj);
+    if (nSrcIndex < 0)
+    {
+        return false;
+    }
+
+    m_depositSourceSlot = nSrcIndex;
+    SendRequestEquipmentItem(sourceCtrl->GetStorageType(), nSrcIndex, pItemObj, STORAGE_TYPE::BANK, freeBox);
+    PlayBuffer(SOUND_GET_ITEM01);
+    return true;
+}
+
+void SEASON3B::CNewUIBankWindow::TakeSelectedItem()
+{
+    if (!HasSelectedItem())
+    {
+        return;
+    }
+
+    ITEM* pItem = m_boxes[m_selectedSlot];
+    CNewUIInventoryCtrl* pInventory = g_pMyInventory->GetInventoryCtrl();
+    if (pInventory == nullptr)
+    {
+        return;
+    }
+
+    const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[pItem->Type];
+    const int freeSlot = pInventory->FindEmptySlot(pItemAttr->Width, pItemAttr->Height);
+    if (freeSlot < 0)
+    {
+        g_pChatListBox->AddText(L"", I18N::Game::InventorySpaceIsInsufficient, SEASON3B::TYPE_ERROR_MESSAGE);
+        return;
+    }
+
+    m_takeSourceSlot = m_selectedSlot;
+    SendRequestEquipmentItem(STORAGE_TYPE::BANK, m_selectedSlot, pItem, STORAGE_TYPE::INVENTORY, freeSlot);
+    PlayBuffer(SOUND_GET_ITEM01);
+}
+
+bool SEASON3B::CNewUIBankWindow::HasSelectedItem()
+{
+    if (m_selectedSlot >= 0 && m_selectedSlot < BANK_TOTAL_SLOTS && m_boxes[m_selectedSlot] != nullptr)
+    {
+        return true;
+    }
+
+    g_pChatListBox->AddText(L"", I18N::Game::BankSelectAnItemFirst, SEASON3B::TYPE_ERROR_MESSAGE);
+    return false;
+}
+
+void SEASON3B::CNewUIBankWindow::RequestMarketPage(BYTE page)
+{
+    SocketClient->ToGameServer()->SendMarketList(page, Net::Bank::AnyCurrency, m_ownOffersOnly, L"");
+}
+
+void SEASON3B::CNewUIBankWindow::FinishOffer(int64_t price)
+{
+    const auto priceCurrency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
+
+    if (m_offerCarriesItem)
+    {
+        if (m_selectedSlot < 0 || m_boxes[m_selectedSlot] == nullptr)
+        {
+            return;
+        }
+
+        SocketClient->ToGameServer()->SendMarketRegisterItem(static_cast<BYTE>(m_selectedSlot), priceCurrency, price);
     }
     else
     {
-        ProcessOfferSelection();
+        // What is offered cannot also be what is asked for, so a pile of zen is sold for cash and
+        // everything else for zen.
+        const auto offeredCurrency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
+        const Net::Bank::Currency askedCurrency =
+            offeredCurrency == Net::Bank::Currency::Zen ? Net::Bank::Currency::WCoinC : Net::Bank::Currency::Zen;
+        SocketClient->ToGameServer()->SendMarketRegisterCurrency(offeredCurrency, m_offerAmount, askedCurrency, price);
     }
 
-    if (ProcessButtons())
+    m_offerAmount = 0;
+}
+
+void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
+{
+    const auto currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
+
+    switch (m_pendingInput)
     {
-        return false;
+    case PendingInput::DepositAmount:
+        SocketClient->ToGameServer()->SendBankMoveValue(true, currency, amount);
+        m_pendingInput = PendingInput::None;
+        break;
+    case PendingInput::WithdrawAmount:
+        SocketClient->ToGameServer()->SendBankMoveValue(false, currency, amount);
+        m_pendingInput = PendingInput::None;
+        break;
+    case PendingInput::OfferAmount:
+        // How much is offered is known now, so the next dialog asks what it costs.
+        m_offerAmount = amount;
+        m_pendingInput = PendingInput::Price;
+        break;
+    default:
+        m_pendingInput = PendingInput::None;
+        break;
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::CancelPendingInput()
+{
+    m_pendingInput = PendingInput::None;
+    m_offerAmount = 0;
+}
+
+void SEASON3B::CNewUIBankWindow::OpenPendingInput()
+{
+    switch (m_pendingInput)
+    {
+    case PendingInput::Price:
+    {
+        CNewUITextInputMsgBox* pMsgBox = nullptr;
+        CreateMessageBox(MSGBOX_LAYOUT_CLASS(CBankPriceMsgBoxLayout), &pMsgBox);
+        m_pendingInput = PendingInput::None;
+        break;
+    }
+    case PendingInput::DepositAmount:
+    case PendingInput::WithdrawAmount:
+    case PendingInput::OfferAmount:
+    {
+        CNewUITextInputMsgBox* pMsgBox = nullptr;
+        CreateMessageBox(MSGBOX_LAYOUT_CLASS(CBankAmountMsgBoxLayout), &pMsgBox);
+        // The kind stays until the answer arrives, because it decides what the amount is for.
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::ShowRefusedRequest()
+{
+    g_pChatListBox->AddText(L"", I18N::Game::BankRefusedTheRequest, SEASON3B::TYPE_ERROR_MESSAGE);
+}
+
+bool SEASON3B::CNewUIBankWindow::Update()
+{
+    if (!IsVisible())
+    {
+        return true;
     }
 
-    if (CheckMouseIn(m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT))
+    Net::Bank::Operation operation = Net::Bank::Operation::Deposit;
+    Net::Bank::ResultCode result = Net::Bank::ResultCode::Success;
+    if (Net::Bank::Store::Instance().TakeNewResult(operation, result))
     {
-        if (g_pNewUISystem->HandleFrameCornerClose(m_Pos, INTERFACE_BANK))
+        if (result != Net::Bank::ResultCode::Success)
         {
-            return false;
+            ShowRefusedRequest();
         }
+        else if (operation == Net::Bank::Operation::MarketRegister || operation == Net::Bank::Operation::MarketBuy ||
+                 operation == Net::Bank::Operation::MarketCancel)
+        {
+            m_selectedOffer = -1;
+            RequestMarketPage(Net::Bank::Store::Instance().GetOfferPage());
+        }
+    }
 
-        if (m_page == Page::Storage)
-        {
-            ProcessBalanceSelection();
-        }
-
-        if (IsPress(VK_RBUTTON))
-        {
-            MouseRButton = false;
-            MouseRButtonPop = false;
-            MouseRButtonPush = false;
-            return false;
-        }
-
-        if (!IsNone(VK_LBUTTON))
-        {
-            return false;
-        }
+    // A dialog is opened from here and never from the callback of another one, so a message box is
+    // never created while the box which asked for it is being destroyed.
+    if (m_pendingInput != PendingInput::None && g_MessageBox && !g_MessageBox->IsVisible())
+    {
+        OpenPendingInput();
     }
 
     return true;
 }
 
-bool CNewUIBankWindow::UpdateKeyEvent()
+bool SEASON3B::CNewUIBankWindow::UpdateKeyEvent()
 {
-    if (!g_pNewUISystem->IsVisible(INTERFACE_BANK))
-    {
-        return true;
-    }
-
-    if (IsPress(VK_ESCAPE))
+    if (IsVisible() && SEASON3B::IsPress(VK_ESCAPE))
     {
         g_pNewUISystem->Hide(INTERFACE_BANK);
         PlayBuffer(SOUND_CLICK01);
@@ -265,12 +524,41 @@ bool CNewUIBankWindow::UpdateKeyEvent()
     return true;
 }
 
-bool CNewUIBankWindow::Update()
+bool SEASON3B::CNewUIBankWindow::UpdateMouseEvent()
 {
-    ShowRefusedRequest();
-    OpenPendingInput();
+    if (!IsVisible())
+    {
+        return true;
+    }
 
-    if (m_page == Page::Storage && m_pInventoryCtrl && !m_pInventoryCtrl->Update())
+    if (ProcessTabs())
+    {
+        return false;
+    }
+
+    if (ProcessButtons())
+    {
+        return false;
+    }
+
+    if (m_page == Page::Items && ProcessTileSelection())
+    {
+        return false;
+    }
+
+    if (m_page == Page::Values && ProcessValueSelection())
+    {
+        return false;
+    }
+
+    if (m_page == Page::Market && ProcessOfferSelection())
+    {
+        return false;
+    }
+
+    // The window swallows what happens over it, so a click next to a box does not walk the
+    // character to the other side of the map.
+    if (SEASON3B::CheckMouseIn(m_Pos.x, m_Pos.y, static_cast<int>(BANK_WIDTH), static_cast<int>(BANK_HEIGHT)))
     {
         return false;
     }
@@ -278,258 +566,102 @@ bool CNewUIBankWindow::Update()
     return true;
 }
 
-void CNewUIBankWindow::ShowRefusedRequest()
+bool SEASON3B::CNewUIBankWindow::ProcessTabs()
 {
-    Net::Bank::Operation operation = Net::Bank::Operation::Deposit;
-    Net::Bank::ResultCode result = Net::Bank::ResultCode::Success;
-    if (!Net::Bank::Store::Instance().TakeNewResult(operation, result))
+    if (m_abtn[BTN_TAB_ITEMS].UpdateMouseEvent())
     {
-        return;
-    }
-
-    if (result == Net::Bank::ResultCode::Success)
-    {
-        // What succeeded is visible: the balances and the boxes were sent with the answer.
-        m_pendingSlot = NoSlot;
-        return;
-    }
-
-    // Which of the twenty reasons it was is in the answer, but the player only needs to know that
-    // nothing happened; the balances on screen say the rest.
-    g_pSystemLogBox->AddText(I18N::Game::BankRefusedTheRequest, SEASON3B::TYPE_ERROR_MESSAGE);
-}
-
-void CNewUIBankWindow::OpenPendingInput()
-{
-    const PendingInput pending = m_pendingInput;
-    m_pendingInput = PendingInput::None;
-
-    switch (pending)
-    {
-    case PendingInput::Price:
-        CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CBankPriceMsgBoxLayout));
-        break;
-    case PendingInput::Receiver:
-        CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CBankReceiverMsgBoxLayout));
-        break;
-    case PendingInput::Amount:
-        CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CBankAmountMsgBoxLayout));
-        break;
-    default:
-        break;
-    }
-}
-
-bool CNewUIBankWindow::Render()
-{
-    EnableAlphaTest();
-
-    RenderFrame();
-
-    if (m_page == Page::Storage)
-    {
-        RenderStoragePage();
-    }
-    else
-    {
-        RenderMarketPage();
-    }
-
-    const int lastButton = m_page == Page::Storage ? MAX_BTN : BTN_SEND_VALUE;
-    for (int i = 0; i < lastButton; ++i)
-    {
-        m_abtn[i].Render();
-    }
-
-    DisableAlphaBlend();
-
-    return true;
-}
-
-void CNewUIBankWindow::RenderFrame()
-{
-    const auto x = static_cast<float>(m_Pos.x);
-    const auto y = static_cast<float>(m_Pos.y);
-    constexpr float topHeight = 64.f;
-    constexpr float bottomHeight = 45.f;
-    constexpr float sideWidth = 21.f;
-
-    RenderImage(IMAGE_BANK_BACK, x, y, BANK_WIDTH, BANK_HEIGHT);
-    RenderImage(IMAGE_BANK_TOP, x, y, BANK_WIDTH, topHeight);
-    RenderImage(IMAGE_BANK_LEFT, x, y + topHeight, sideWidth, BANK_HEIGHT - topHeight - bottomHeight);
-    RenderImage(IMAGE_BANK_RIGHT, x + BANK_WIDTH - sideWidth, y + topHeight, sideWidth,
-                BANK_HEIGHT - topHeight - bottomHeight);
-    RenderImage(IMAGE_BANK_BOTTOM, x, y + BANK_HEIGHT - bottomHeight, BANK_WIDTH, bottomHeight);
-
-    g_pRenderText->SetFont(g_hFontBold);
-    g_pRenderText->SetBgColor(0);
-    g_pRenderText->SetTextColor(216, 216, 216, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + 11, I18N::Game::Bank, BANK_WIDTH, 0, RT3_SORT_CENTER);
-}
-
-void CNewUIBankWindow::RenderStoragePage()
-{
-    if (m_pInventoryCtrl)
-    {
-        m_pInventoryCtrl->Render();
-    }
-
-    g_pRenderText->SetFont(g_hFont);
-    g_pRenderText->SetBgColor(0);
-
-    wchar_t pageText[64];
-    mu_swprintf_s(pageText, _countof(pageText), I18N::Game::BankPageOf, m_itemPage + 1, ITEM_PAGE_COUNT);
-    g_pRenderText->SetTextColor(200, 200, 200, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + ItemPageLabelY, pageText, BANK_WIDTH, 0, RT3_SORT_CENTER);
-
-    RenderBalances();
-}
-
-void CNewUIBankWindow::RenderBalances()
-{
-    const auto& store = Net::Bank::Store::Instance();
-
-    for (int i = 0; i < CurrencyCount; ++i)
-    {
-        const int column = i / BalanceRows;
-        const int row = i % BalanceRows;
-        const int lineX = m_Pos.x + BalanceMarginX + column * BalanceColumnWidth;
-        const int lineY = m_Pos.y + BalanceTop + row * BalanceLineHeight;
-
-        if (i == m_selectedCurrency)
-        {
-            g_pRenderText->SetTextColor(255, 220, 150, 255);
-        }
-        else
-        {
-            g_pRenderText->SetTextColor(190, 190, 190, 255);
-        }
-
-        const auto currency = static_cast<Net::Bank::Currency>(i);
-        wchar_t line[64];
-        mu_swprintf_s(line, _countof(line), L"%ls %lld", GetCurrencyName(currency),
-                      static_cast<long long>(store.GetBalance(currency)));
-        g_pRenderText->RenderText(lineX, lineY, line);
-    }
-}
-
-void CNewUIBankWindow::RenderMarketPage()
-{
-    const auto& store = Net::Bank::Store::Instance();
-    const auto& offers = store.GetOffers();
-
-    g_pRenderText->SetFont(g_hFont);
-    g_pRenderText->SetBgColor(0);
-
-    if (offers.empty())
-    {
-        g_pRenderText->SetTextColor(200, 200, 200, 255);
-        g_pRenderText->RenderText(m_Pos.x, m_Pos.y + OfferListTop, I18N::Game::BankHasNoOffers, BANK_WIDTH, 0,
-                                  RT3_SORT_CENTER);
-        return;
-    }
-
-    const int visible = std::min<int>(MaxVisibleOffers, static_cast<int>(offers.size()));
-    for (int i = 0; i < visible; ++i)
-    {
-        const auto& offer = offers[i];
-        const int lineY = m_Pos.y + OfferListTop + i * OfferLineHeight;
-
-        if (i == m_selectedOffer)
-        {
-            g_pRenderText->SetTextColor(255, 220, 150, 255);
-        }
-        else
-        {
-            g_pRenderText->SetTextColor(200, 200, 200, 255);
-        }
-
-        g_pRenderText->RenderText(m_Pos.x + TextMargin, lineY, offer.OfferName.c_str());
-
-        wchar_t price[128];
-        mu_swprintf_s(price, _countof(price), L"%lld %ls - %ls", static_cast<long long>(offer.PriceAmount),
-                      GetCurrencyName(offer.PriceCurrency), offer.SellerName.c_str());
-        g_pRenderText->SetTextColor(180, 180, 180, 255);
-        g_pRenderText->RenderText(m_Pos.x + TextMargin, lineY + 15, price);
-    }
-
-    wchar_t pageText[64];
-    mu_swprintf_s(pageText, _countof(pageText), I18N::Game::BankPageOf, store.GetOfferPage() + 1,
-                  store.GetOfferPageCount());
-    g_pRenderText->SetTextColor(200, 200, 200, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + MarketPageLabelY, pageText, BANK_WIDTH, 0, RT3_SORT_CENTER);
-}
-
-bool CNewUIBankWindow::ProcessButtons()
-{
-    if (m_abtn[BTN_PAGE].UpdateMouseEvent())
-    {
-        if (m_page == Page::Storage)
-        {
-            m_page = Page::Market;
-            m_selectedOffer = 0;
-            m_abtn[BTN_PAGE].ChangeText(I18N::Game::BankStorage);
-            m_abtn[BTN_DEPOSIT].ChangeText(I18N::Game::BankBuyOffer);
-            m_abtn[BTN_WITHDRAW].ChangeText(I18N::Game::BankCancelOffer);
-            RequestMarketPage(0);
-        }
-        else
-        {
-            m_page = Page::Storage;
-            m_abtn[BTN_PAGE].ChangeText(I18N::Game::BankMarket);
-            m_abtn[BTN_DEPOSIT].ChangeText(I18N::Game::BankDepositEverything);
-            m_abtn[BTN_WITHDRAW].ChangeText(I18N::Game::BankWithdrawEverything);
-        }
-
+        m_page = Page::Items;
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
 
-    return m_page == Page::Storage ? ProcessStorageButtons() : ProcessMarketButtons();
+    if (m_abtn[BTN_TAB_VALUES].UpdateMouseEvent())
+    {
+        m_page = Page::Values;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    if (m_abtn[BTN_TAB_MARKET].UpdateMouseEvent())
+    {
+        m_page = Page::Market;
+        m_selectedOffer = -1;
+        RequestMarketPage(0);
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    return false;
 }
 
-bool CNewUIBankWindow::ProcessStorageButtons()
+bool SEASON3B::CNewUIBankWindow::ProcessButtons()
 {
-    if (m_abtn[BTN_PREV].UpdateMouseEvent())
+    if (m_page != Page::Values)
     {
-        ShowItemPage(m_itemPage - 1);
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_NEXT].UpdateMouseEvent())
-    {
-        ShowItemPage(m_itemPage + 1);
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_DEPOSIT].UpdateMouseEvent())
-    {
-        MoveSelectedCurrency(true);
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_WITHDRAW].UpdateMouseEvent())
-    {
-        MoveSelectedCurrency(false);
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_SEND_VALUE].UpdateMouseEvent())
-    {
-        m_transferCarriesItem = false;
-        m_pendingInput = PendingInput::Receiver;
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_OFFER].UpdateMouseEvent())
-    {
-        if (TakePickedBankSlot(m_pendingSlot))
+        if (m_abtn[BTN_PREV].UpdateMouseEvent())
         {
+            if (m_page == Page::Items)
+            {
+                m_itemPage = m_itemPage > 0 ? m_itemPage - 1 : ITEM_PAGE_COUNT - 1;
+            }
+            else
+            {
+                const BYTE page = Net::Bank::Store::Instance().GetOfferPage();
+                RequestMarketPage(page > 0 ? static_cast<BYTE>(page - 1) : 0);
+            }
+
+            PlayBuffer(SOUND_CLICK01);
+            return true;
+        }
+
+        if (m_abtn[BTN_NEXT].UpdateMouseEvent())
+        {
+            if (m_page == Page::Items)
+            {
+                m_itemPage = (m_itemPage + 1) % ITEM_PAGE_COUNT;
+            }
+            else
+            {
+                const auto& store = Net::Bank::Store::Instance();
+                const BYTE page = store.GetOfferPage();
+                if (page + 1 < store.GetOfferPageCount())
+                {
+                    RequestMarketPage(static_cast<BYTE>(page + 1));
+                }
+            }
+
+            PlayBuffer(SOUND_CLICK01);
+            return true;
+        }
+    }
+
+    switch (m_page)
+    {
+    case Page::Items:
+        return ProcessItemsPageButtons();
+    case Page::Values:
+        return ProcessValuesPageButtons();
+    case Page::Market:
+        return ProcessMarketPageButtons();
+    }
+
+    return false;
+}
+
+bool SEASON3B::CNewUIBankWindow::ProcessItemsPageButtons()
+{
+    if (m_abtn[BTN_TAKE_ITEM].UpdateMouseEvent())
+    {
+        TakeSelectedItem();
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    if (m_abtn[BTN_OFFER_ITEM].UpdateMouseEvent())
+    {
+        if (HasSelectedItem())
+        {
+            m_offerCarriesItem = true;
             m_pendingInput = PendingInput::Price;
         }
 
@@ -537,409 +669,510 @@ bool CNewUIBankWindow::ProcessStorageButtons()
         return true;
     }
 
-    if (m_abtn[BTN_SEND_ITEM].UpdateMouseEvent())
-    {
-        if (TakePickedBankSlot(m_pendingSlot))
-        {
-            m_transferCarriesItem = true;
-            m_pendingInput = PendingInput::Receiver;
-        }
-
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
     return false;
 }
 
-bool CNewUIBankWindow::ProcessMarketButtons()
+bool SEASON3B::CNewUIBankWindow::ProcessValuesPageButtons()
 {
-    const auto& store = Net::Bank::Store::Instance();
-
-    if (m_abtn[BTN_PREV].UpdateMouseEvent())
-    {
-        if (store.GetOfferPage() > 0)
-        {
-            RequestMarketPage(static_cast<BYTE>(store.GetOfferPage() - 1));
-        }
-
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_NEXT].UpdateMouseEvent())
-    {
-        if (store.GetOfferPage() + 1 < store.GetOfferPageCount())
-        {
-            RequestMarketPage(static_cast<BYTE>(store.GetOfferPage() + 1));
-        }
-
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
     if (m_abtn[BTN_DEPOSIT].UpdateMouseEvent())
     {
-        BuySelectedOffer();
+        m_pendingInput = PendingInput::DepositAmount;
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
 
     if (m_abtn[BTN_WITHDRAW].UpdateMouseEvent())
     {
+        m_pendingInput = PendingInput::WithdrawAmount;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    if (m_abtn[BTN_OFFER_VALUE].UpdateMouseEvent())
+    {
+        m_offerCarriesItem = false;
+        m_pendingInput = PendingInput::OfferAmount;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    return false;
+}
+
+bool SEASON3B::CNewUIBankWindow::ProcessMarketPageButtons()
+{
+    if (m_abtn[BTN_BUY].UpdateMouseEvent())
+    {
+        BuySelectedOffer();
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    if (m_abtn[BTN_CANCEL_OFFER].UpdateMouseEvent())
+    {
         CancelSelectedOffer();
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
 
-    return false;
-}
-
-void CNewUIBankWindow::ProcessInventoryCtrl()
-{
-    if (m_pInventoryCtrl == nullptr)
+    if (m_abtn[BTN_MINE].UpdateMouseEvent())
     {
-        return;
-    }
-
-    CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
-    if (pPickedItem == nullptr)
-    {
-        // Nothing on the cursor, so the right button means "move this one over by itself".
-        if (IsPress(VK_RBUTTON))
-        {
-            ProcessAutoMove();
-        }
-
-        return;
-    }
-
-    ITEM* pItemObj = pPickedItem->GetItem();
-    if (pItemObj == nullptr)
-    {
-        return;
-    }
-
-    if (IsPress(VK_LBUTTON) || IsRelease(VK_LBUTTON))
-    {
-        const int targetSlot = pPickedItem->GetTargetLinealPos(m_pInventoryCtrl);
-        if (targetSlot >= 0 && m_pInventoryCtrl->CanMove(targetSlot, pItemObj))
-        {
-            SendRequestEquipmentItem(pPickedItem->GetSourceStorageType(), pPickedItem->GetSourceLinealPos(), pItemObj,
-                                     m_pInventoryCtrl->GetStorageType(), targetSlot);
-        }
-    }
-    else
-    {
-        m_pInventoryCtrl->SetSquareColorNormal(0.1f, 0.4f, 0.8f);
-    }
-}
-
-void CNewUIBankWindow::ProcessAutoMove()
-{
-    if (m_pInventoryCtrl == nullptr || m_autoMoveItem != nullptr)
-    {
-        return;
-    }
-
-    ITEM* pItemObj = m_pInventoryCtrl->FindItemAtPt(MouseX, MouseY);
-    if (pItemObj == nullptr)
-    {
-        return;
-    }
-
-    const int targetSlot = g_pMyInventory->FindEmptySlotIncludingExtensions(pItemObj);
-    if (targetSlot == -1)
-    {
-        return;
-    }
-
-    const int sourceSlot =
-        pItemObj->y * m_pInventoryCtrl->GetNumberOfColumn() + pItemObj->x + m_pInventoryCtrl->GetIndexOffset();
-
-    // Remembered, not removed: the box only empties once the server confirmed the move.
-    m_autoMoveItem = pItemObj;
-    SendRequestEquipmentItem(STORAGE_TYPE::BANK, sourceSlot, pItemObj, STORAGE_TYPE::INVENTORY, targetSlot);
-    PlayBuffer(SOUND_GET_ITEM01);
-}
-
-void CNewUIBankWindow::ProcessAutoMoveSuccess()
-{
-    if (m_autoMoveItem == nullptr || m_pInventoryCtrl == nullptr)
-    {
-        return;
-    }
-
-    m_pInventoryCtrl->RemoveItem(m_autoMoveItem);
-    m_autoMoveItem = nullptr;
-}
-
-void CNewUIBankWindow::ProcessOfferSelection()
-{
-    if (!CheckMouseIn(m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT) || !IsPress(VK_LBUTTON))
-    {
-        return;
-    }
-
-    const int relativeY = MouseY - (m_Pos.y + OfferListTop);
-    if (relativeY < 0)
-    {
-        return;
-    }
-
-    const int index = relativeY / OfferLineHeight;
-    const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    if (index < static_cast<int>(offers.size()) && index < MaxVisibleOffers)
-    {
-        m_selectedOffer = index;
-    }
-}
-
-void CNewUIBankWindow::ProcessBalanceSelection()
-{
-    if (!IsPress(VK_LBUTTON))
-    {
-        return;
-    }
-
-    const int relativeX = MouseX - (m_Pos.x + BalanceMarginX);
-    const int relativeY = MouseY - (m_Pos.y + BalanceTop);
-    if (relativeX < 0 || relativeY < 0 || relativeY >= BalanceRows * BalanceLineHeight)
-    {
-        return;
-    }
-
-    const int index = (relativeX / BalanceColumnWidth) * BalanceRows + relativeY / BalanceLineHeight;
-    if (index >= 0 && index < CurrencyCount)
-    {
-        m_selectedCurrency = index;
+        m_ownOffersOnly = !m_ownOffersOnly;
+        m_selectedOffer = -1;
+        RequestMarketPage(0);
         PlayBuffer(SOUND_CLICK01);
-    }
-}
-
-void CNewUIBankWindow::ShowItemPage(int page)
-{
-    if (m_pInventoryCtrl == nullptr || page < 0 || page >= ITEM_PAGE_COUNT)
-    {
-        return;
-    }
-
-    m_itemPage = page;
-    m_pInventoryCtrl->RemoveAllItems();
-    m_pInventoryCtrl->SetIndexOffset(page * ITEMS_PER_PAGE);
-
-    const int first = page * ITEMS_PER_PAGE;
-    const int last = first + ITEMS_PER_PAGE;
-    for (const auto& stored : m_storedItems)
-    {
-        if (stored.first >= first && stored.first < last)
-        {
-            m_pInventoryCtrl->AddItem(stored.first, stored.second);
-        }
-    }
-}
-
-bool CNewUIBankWindow::TakePickedBankSlot(int& slot)
-{
-    slot = NoSlot;
-
-    CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
-    if (pPickedItem != nullptr && pPickedItem->GetItem() != nullptr
-        && pPickedItem->GetSourceStorageType() == STORAGE_TYPE::BANK)
-    {
-        slot = pPickedItem->GetSourceLinealPos();
-
-        // The item goes back into its box while the dialog asks; the server is told the box, and
-        // an item left hanging on the cursor would only be in the way.
-        CNewUIInventoryCtrl::BackupPickedItem();
         return true;
     }
 
-    g_pSystemLogBox->AddText(I18N::Game::BankSelectAnItemFirst, SEASON3B::TYPE_SYSTEM_MESSAGE);
     return false;
 }
 
-void CNewUIBankWindow::MoveSelectedCurrency(bool deposit)
+void SEASON3B::CNewUIBankWindow::BuySelectedOffer()
 {
-    if (!SocketClient)
-    {
-        return;
-    }
-
-    const auto currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
-    const int64_t amount = deposit ? Everything : Net::Bank::Store::Instance().GetBalance(currency);
-    if (amount <= 0)
-    {
-        return;
-    }
-
-    SocketClient->ToGameServer()->SendBankMoveValue(deposit, currency, amount);
-}
-
-void CNewUIBankWindow::BuySelectedOffer()
-{
-    if (!SocketClient)
-    {
-        return;
-    }
-
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    if (m_selectedOffer < static_cast<int>(offers.size()))
-    {
-        SocketClient->ToGameServer()->SendMarketBuy(offers[m_selectedOffer].ListingId.data());
-    }
-}
-
-void CNewUIBankWindow::CancelSelectedOffer()
-{
-    if (!SocketClient)
+    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()))
     {
         return;
     }
 
+    SocketClient->ToGameServer()->SendMarketBuy(offers[m_selectedOffer].ListingId.data());
+}
+
+void SEASON3B::CNewUIBankWindow::CancelSelectedOffer()
+{
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    if (m_selectedOffer < static_cast<int>(offers.size()))
-    {
-        SocketClient->ToGameServer()->SendMarketCancel(offers[m_selectedOffer].ListingId.data());
-    }
-}
-
-void CNewUIBankWindow::FinishOffer(int64_t price)
-{
-    if (!SocketClient || m_pendingSlot == NoSlot)
+    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()))
     {
         return;
     }
 
-    SocketClient->ToGameServer()->SendMarketRegisterItem(static_cast<BYTE>(m_pendingSlot),
-                                                        static_cast<Net::Bank::Currency>(m_selectedCurrency), price);
+    SocketClient->ToGameServer()->SendMarketCancel(offers[m_selectedOffer].ListingId.data());
 }
 
-void CNewUIBankWindow::SetTransferReceiver(const wchar_t* receiverName)
+void SEASON3B::CNewUIBankWindow::GetTileRect(int slotOnPage, RECT& rect) const
 {
-    if (receiverName == nullptr)
-    {
-        return;
-    }
+    const int column = slotOnPage % TILE_COLUMNS;
+    const int row = slotOnPage / TILE_COLUMNS;
 
-    m_transferReceiver = receiverName;
-
-    if (!m_transferCarriesItem)
-    {
-        // A currency still needs an amount; the dialog for it opens on the next frame.
-        m_pendingInput = PendingInput::Amount;
-        return;
-    }
-
-    if (SocketClient && m_pendingSlot != NoSlot)
-    {
-        SocketClient->ToGameServer()->SendBankTransferItem(m_transferReceiver.c_str(),
-                                                          static_cast<BYTE>(m_pendingSlot), L"");
-    }
+    rect.left = m_Pos.x + TILE_ORIGIN_X + column * TILE_SIZE;
+    rect.top = m_Pos.y + CONTENT_TOP + row * TILE_SIZE;
+    rect.right = rect.left + TILE_SIZE;
+    rect.bottom = rect.top + TILE_SIZE;
 }
 
-void CNewUIBankWindow::FinishValueTransfer(int64_t amount)
+int SEASON3B::CNewUIBankWindow::GetTileAtCursor() const
 {
-    if (!SocketClient || m_transferReceiver.empty())
+    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
     {
-        return;
+        RECT rect;
+        GetTileRect(slotOnPage, rect);
+        if (SEASON3B::CheckMouseIn(rect.left, rect.top, TILE_SIZE, TILE_SIZE))
+        {
+            return m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+        }
     }
 
-    SocketClient->ToGameServer()->SendBankTransferValue(
-        m_transferReceiver.c_str(), static_cast<Net::Bank::Currency>(m_selectedCurrency), amount, L"");
-    m_transferReceiver.clear();
+    return -1;
 }
 
-void CNewUIBankWindow::CancelPendingInput()
+bool SEASON3B::CNewUIBankWindow::ProcessTileSelection()
 {
-    m_pendingInput = PendingInput::None;
-    m_pendingSlot = NoSlot;
-    m_transferReceiver.clear();
-}
-
-void CNewUIBankWindow::RequestMarketPage(BYTE page)
-{
-    if (SocketClient)
-    {
-        SocketClient->ToGameServer()->SendMarketList(page, Net::Bank::AnyCurrency, false, L"");
-    }
-}
-
-bool CNewUIBankWindow::InsertItem(int iIndex, std::span<const BYTE> pbyItemPacket)
-{
-    if (iIndex < 0 || iIndex >= BANK_TOTAL_SLOTS)
+    const int slot = GetTileAtCursor();
+    if (slot < 0)
     {
         return false;
     }
 
-    m_storedItems[iIndex] = std::vector<BYTE>(pbyItemPacket.begin(), pbyItemPacket.end());
-
-    const int first = m_itemPage * ITEMS_PER_PAGE;
-    if (iIndex < first || iIndex >= first + ITEMS_PER_PAGE)
+    if (SEASON3B::IsRelease(VK_LBUTTON))
     {
-        // The box belongs to a page which is not on screen; it is drawn when that page is shown.
+        m_selectedSlot = m_boxes[slot] != nullptr ? slot : -1;
+        PlayBuffer(SOUND_CLICK01);
         return true;
     }
 
-    return m_pInventoryCtrl != nullptr && m_pInventoryCtrl->AddItem(iIndex, pbyItemPacket);
+    // The cursor is over a box, so nothing behind the window may take this frame.
+    return true;
 }
 
-void CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span<const BYTE> pbyItemPacket)
+bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
 {
-    if (m_pInventoryCtrl == nullptr || nIndex < 0 || nIndex >= BANK_TOTAL_SLOTS)
+    for (int currency = 0; currency < static_cast<int>(Net::Bank::Currency::Count); ++currency)
+    {
+        const int group = currency < MONEY_CURRENCY_COUNT ? 0 : 1;
+        const int rowInGroup = group == 0 ? currency : currency - MONEY_CURRENCY_COUNT;
+        const int top = m_Pos.y + CONTENT_TOP + (group == 0 ? 18 : 106) + rowInGroup * LIST_LINE_HEIGHT;
+
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 10, top, static_cast<int>(BANK_WIDTH) - 20, LIST_LINE_HEIGHT))
+        {
+            if (SEASON3B::IsRelease(VK_LBUTTON))
+            {
+                m_selectedCurrency = currency;
+                PlayBuffer(SOUND_CLICK01);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool SEASON3B::CNewUIBankWindow::ProcessOfferSelection()
+{
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    const int rows = static_cast<int>(offers.size()) < MARKET_ROWS ? static_cast<int>(offers.size()) : MARKET_ROWS;
+
+    for (int row = 0; row < rows; ++row)
+    {
+        const int top = m_Pos.y + CONTENT_TOP + 18 + row * LIST_LINE_HEIGHT;
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 10, top, static_cast<int>(BANK_WIDTH) - 20, LIST_LINE_HEIGHT))
+        {
+            if (SEASON3B::IsRelease(VK_LBUTTON))
+            {
+                m_selectedOffer = row;
+                PlayBuffer(SOUND_CLICK01);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool SEASON3B::CNewUIBankWindow::Render()
+{
+    if (!IsVisible())
+    {
+        return true;
+    }
+
+    EnableAlphaTest();
+
+    RenderFrame();
+    RenderTabs();
+
+    switch (m_page)
+    {
+    case Page::Items:
+        RenderItemsPage();
+        break;
+    case Page::Values:
+        RenderValuesPage();
+        break;
+    case Page::Market:
+        RenderMarketPage();
+        break;
+    }
+
+    DisableAlphaBlend();
+    return true;
+}
+
+void SEASON3B::CNewUIBankWindow::RenderFrame()
+{
+    RenderImage(IMAGE_BANK_BACK, m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT);
+    RenderImage(IMAGE_BANK_TOP, m_Pos.x, m_Pos.y, BANK_WIDTH, 64.f);
+    RenderImage(IMAGE_BANK_LEFT, m_Pos.x, m_Pos.y + 64, 21.f, BANK_HEIGHT - 109.f);
+    RenderImage(IMAGE_BANK_RIGHT, m_Pos.x + BANK_WIDTH - 21, m_Pos.y + 64, 21.f, BANK_HEIGHT - 109.f);
+    RenderImage(IMAGE_BANK_BOTTOM, m_Pos.x, m_Pos.y + BANK_HEIGHT - 45, BANK_WIDTH, 45.f);
+
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(230, 230, 230, 255);
+    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + 10, I18N::Game::Bank, static_cast<int>(BANK_WIDTH), 0,
+                              RT3_SORT_CENTER);
+}
+
+void SEASON3B::CNewUIBankWindow::RenderTabs()
+{
+    // The tab which is shown is the one which is not drawn as a button the player can press.
+    m_abtn[BTN_TAB_ITEMS].ChangeTextColor(m_page == Page::Items ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
+    m_abtn[BTN_TAB_VALUES].ChangeTextColor(m_page == Page::Values ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
+    m_abtn[BTN_TAB_MARKET].ChangeTextColor(m_page == Page::Market ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
+
+    m_abtn[BTN_TAB_ITEMS].Render();
+    m_abtn[BTN_TAB_VALUES].Render();
+    m_abtn[BTN_TAB_MARKET].Render();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderItemsPage()
+{
+    const int hovered = GetTileAtCursor();
+
+    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
+    {
+        const int slot = m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+        RECT rect;
+        GetTileRect(slotOnPage, rect);
+
+        unsigned int color = EMPTY_BOX_COLOR;
+        if (slot == m_selectedSlot && m_boxes[slot] != nullptr)
+        {
+            color = PICKED_COLOR;
+        }
+        else if (slot == hovered)
+        {
+            color = HOVERED_COLOR;
+        }
+
+        RenderColorQuadARGB(static_cast<float>(rect.left + 1), static_cast<float>(rect.top + 1),
+                            static_cast<float>(TILE_SIZE - 2), static_cast<float>(TILE_SIZE - 2), color);
+        EndRenderColor();
+    }
+
+    wchar_t szText[256] = {0};
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0);
+
+    // What is picked, and what a price would be asked in, because that is what the market needs.
+    g_pRenderText->SetTextColor(255, 210, 80, 255);
+    if (m_selectedSlot >= 0 && m_boxes[m_selectedSlot] != nullptr)
+    {
+        GetItemName(m_boxes[m_selectedSlot]->Type, m_boxes[m_selectedSlot]->Level, szText);
+    }
+    else
+    {
+        mu_swprintf(szText, L"%ls", GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency)));
+    }
+
+    g_pRenderText->RenderText(m_Pos.x + 10, m_Pos.y + INFO_ROW_TOP, szText, static_cast<int>(BANK_WIDTH) - 20, 0,
+                              RT3_SORT_CENTER);
+
+    int used = 0;
+    for (int slot = 0; slot < BANK_TOTAL_SLOTS; ++slot)
+    {
+        if (m_boxes[slot] != nullptr)
+        {
+            ++used;
+        }
+    }
+
+    g_pRenderText->SetTextColor(200, 200, 200, 255);
+    mu_swprintf(szText, I18N::Game::BankBoxCount, used, BANK_TOTAL_SLOTS);
+    g_pRenderText->RenderText(m_Pos.x + 12, m_Pos.y + PAGE_ROW_TOP + 22, szText, 100, 0);
+
+    mu_swprintf(szText, I18N::Game::BankPageOf, m_itemPage + 1, ITEM_PAGE_COUNT);
+    g_pRenderText->RenderText(m_Pos.x + 60, m_Pos.y + PAGE_ROW_TOP + 3, szText, 140, 0, RT3_SORT_CENTER);
+
+    m_abtn[BTN_PREV].Render();
+    m_abtn[BTN_NEXT].Render();
+    m_abtn[BTN_TAKE_ITEM].Render();
+    m_abtn[BTN_OFFER_ITEM].Render();
+
+    RenderHoveredItemInfo();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderValuesPage()
+{
+    wchar_t szText[256] = {0};
+    wchar_t szAmount[64] = {0};
+
+    g_pRenderText->SetBgColor(0);
+
+    for (int group = 0; group < 2; ++group)
+    {
+        g_pRenderText->SetFont(g_hFontBold);
+        g_pRenderText->SetTextColor(160, 200, 255, 255);
+        g_pRenderText->RenderText(m_Pos.x + 12, m_Pos.y + CONTENT_TOP + (group == 0 ? 0 : 88),
+                                  group == 0 ? I18N::Game::BankMoneyGroup : I18N::Game::BankJewelGroup, 200, 0);
+
+        const int first = group == 0 ? 0 : MONEY_CURRENCY_COUNT;
+        const int last = group == 0 ? MONEY_CURRENCY_COUNT : static_cast<int>(Net::Bank::Currency::Count);
+
+        g_pRenderText->SetFont(g_hFont);
+        for (int currency = first; currency < last; ++currency)
+        {
+            const int rowInGroup = currency - first;
+            const int top = m_Pos.y + CONTENT_TOP + (group == 0 ? 18 : 106) + rowInGroup * LIST_LINE_HEIGHT;
+
+            if (currency == m_selectedCurrency)
+            {
+                RenderColorQuadARGB(static_cast<float>(m_Pos.x + 10), static_cast<float>(top), BANK_WIDTH - 20.f,
+                                    static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
+                EndRenderColor();
+                g_pRenderText->SetTextColor(255, 230, 150, 255);
+            }
+            else
+            {
+                g_pRenderText->SetTextColor(220, 220, 220, 255);
+            }
+
+            g_pRenderText->RenderText(m_Pos.x + 16, top + 1,
+                                      GetCurrencyName(static_cast<Net::Bank::Currency>(currency)), 150, 0);
+
+            FormatAmount(Net::Bank::Store::Instance().GetBalance(static_cast<Net::Bank::Currency>(currency)), szAmount,
+                         std::size(szAmount));
+            mu_swprintf(szText, L"%ls", szAmount);
+            g_pRenderText->RenderText(m_Pos.x + 100, top + 1, szText, 144, 0, RT3_SORT_RIGHT);
+        }
+    }
+
+    m_abtn[BTN_DEPOSIT].Render();
+    m_abtn[BTN_WITHDRAW].Render();
+    m_abtn[BTN_OFFER_VALUE].Render();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderMarketPage()
+{
+    wchar_t szText[256] = {0};
+    wchar_t szAmount[64] = {0};
+
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetTextColor(160, 200, 255, 255);
+    g_pRenderText->RenderText(m_Pos.x + 16, m_Pos.y + CONTENT_TOP, I18N::Game::BankSellerColumn, 60, 0);
+    g_pRenderText->RenderText(m_Pos.x + 76, m_Pos.y + CONTENT_TOP, I18N::Game::BankItemColumn, 100, 0);
+    g_pRenderText->RenderText(m_Pos.x + 176, m_Pos.y + CONTENT_TOP, I18N::Game::BankPriceColumn, 68, 0, RT3_SORT_RIGHT);
+
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    g_pRenderText->SetFont(g_hFont);
+
+    if (offers.empty())
+    {
+        g_pRenderText->SetTextColor(180, 180, 180, 255);
+        g_pRenderText->RenderText(m_Pos.x + 10, m_Pos.y + CONTENT_TOP + 60, I18N::Game::BankHasNoOffers,
+                                  static_cast<int>(BANK_WIDTH) - 20, 0, RT3_SORT_CENTER);
+    }
+
+    const int rows = static_cast<int>(offers.size()) < MARKET_ROWS ? static_cast<int>(offers.size()) : MARKET_ROWS;
+    for (int row = 0; row < rows; ++row)
+    {
+        const Net::Bank::Offer& offer = offers[row];
+        const int top = m_Pos.y + CONTENT_TOP + 18 + row * LIST_LINE_HEIGHT;
+
+        if (row == m_selectedOffer)
+        {
+            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 10), static_cast<float>(top), BANK_WIDTH - 20.f,
+                                static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
+            EndRenderColor();
+            g_pRenderText->SetTextColor(255, 230, 150, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(220, 220, 220, 255);
+        }
+
+        g_pRenderText->RenderText(m_Pos.x + 16, top + 1, offer.SellerName.c_str(), 60, 0);
+        g_pRenderText->RenderText(m_Pos.x + 76, top + 1, offer.OfferName.c_str(), 100, 0);
+
+        FormatAmount(offer.PriceAmount, szAmount, std::size(szAmount));
+        mu_swprintf(szText, L"%ls %ls", szAmount, GetCurrencyName(offer.PriceCurrency));
+        g_pRenderText->RenderText(m_Pos.x + 176, top + 1, szText, 68, 0, RT3_SORT_RIGHT);
+    }
+
+    g_pRenderText->SetTextColor(200, 200, 200, 255);
+    mu_swprintf(szText, I18N::Game::BankPageOf, Net::Bank::Store::Instance().GetOfferPage() + 1,
+                Net::Bank::Store::Instance().GetOfferPageCount());
+    g_pRenderText->RenderText(m_Pos.x + 60, m_Pos.y + PAGE_ROW_TOP + 3, szText, 140, 0, RT3_SORT_CENTER);
+
+    m_abtn[BTN_MINE].ChangeTextColor(m_ownOffersOnly ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
+
+    m_abtn[BTN_PREV].Render();
+    m_abtn[BTN_NEXT].Render();
+    m_abtn[BTN_BUY].Render();
+    m_abtn[BTN_CANCEL_OFFER].Render();
+    m_abtn[BTN_MINE].Render();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderHoveredItemInfo()
+{
+    if (m_pNewUI3DRenderMng == nullptr || (g_pPickedItem && g_pPickedItem->GetItem()))
     {
         return;
     }
 
-    CNewUIInventoryCtrl::DeletePickedItem();
-
-    m_storedItems[nIndex] = std::vector<BYTE>(pbyItemPacket.begin(), pbyItemPacket.end());
-
-    const int first = m_itemPage * ITEMS_PER_PAGE;
-    if (nIndex >= first && nIndex < first + ITEMS_PER_PAGE)
+    const int slot = GetTileAtCursor();
+    if (slot < 0 || m_boxes[slot] == nullptr)
     {
-        m_pInventoryCtrl->RemoveItemAt(nIndex);
-        m_pInventoryCtrl->AddItem(nIndex, pbyItemPacket);
+        return;
+    }
+
+    m_pNewUI3DRenderMng->RenderUI2DEffect(INVENTORY_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_ITEM_TOOLTIP, 0);
+}
+
+void SEASON3B::CNewUIBankWindow::UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB)
+{
+    auto* pWindow = static_cast<CNewUIBankWindow*>(pClass);
+    if (pWindow == nullptr || dwParamA != RENDER_ITEM_TOOLTIP)
+    {
+        return;
+    }
+
+    const int slot = pWindow->GetTileAtCursor();
+    if (slot < 0 || pWindow->m_boxes[slot] == nullptr)
+    {
+        return;
+    }
+
+    RECT rect;
+    pWindow->GetTileRect(slot - pWindow->m_itemPage * ITEMS_PER_PAGE, rect);
+    RenderItemInfo(rect.left + TILE_SIZE / 2, rect.top, pWindow->m_boxes[slot], false);
+}
+
+void SEASON3B::CNewUIBankWindow::Render3D()
+{
+    if (!IsVisible() || m_page != Page::Items)
+    {
+        return;
+    }
+
+    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
+    {
+        const int slot = m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+        const ITEM* pItem = m_boxes[slot];
+        if (pItem == nullptr)
+        {
+            continue;
+        }
+
+        RECT rect;
+        GetTileRect(slotOnPage, rect);
+
+        // Every box is the same size, so the picture keeps the proportions of the item and is
+        // drawn as large as it can be inside its box.
+        const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[pItem->Type];
+        const int columns = pItemAttr->Width > 0 ? pItemAttr->Width : 1;
+        const int rows = pItemAttr->Height > 0 ? pItemAttr->Height : 1;
+        const float scale = static_cast<float>(TILE_SIZE - 8) / static_cast<float>(columns > rows ? columns : rows);
+        const float width = columns * scale;
+        const float height = rows * scale;
+        const float x = rect.left + (TILE_SIZE - width) / 2.f;
+        const float y = rect.top + (TILE_SIZE - height) / 2.f;
+
+        RenderItem3D(x, y, width, height, pItem->Type, pItem->Level, pItem->ExcellentFlags, pItem->AncientDiscriminator,
+                     false);
     }
 }
 
-void CNewUIBankWindow::DeleteAllItems()
+int SEASON3B::CNewUIBankWindow::GetMoneyCurrencyCount()
 {
-    m_pendingSlot = NoSlot;
-    m_autoMoveItem = nullptr;
-    m_storedItems.clear();
+    return MONEY_CURRENCY_COUNT;
+}
 
-    if (m_pInventoryCtrl)
+const wchar_t* SEASON3B::CNewUIBankWindow::GetCurrencyName(Net::Bank::Currency currency)
+{
+    switch (currency)
     {
-        m_pInventoryCtrl->RemoveAllItems();
+    case Net::Bank::Currency::Zen:
+        return I18N::Game::BankCurrencyZen;
+    case Net::Bank::Currency::WCoinC:
+        return I18N::Game::BankCurrencyWcoinC;
+    case Net::Bank::Currency::WCoinP:
+        return I18N::Game::BankCurrencyWcoinP;
+    case Net::Bank::Currency::GoblinPoints:
+        return I18N::Game::BankCurrencyGoblinPoints;
+    case Net::Bank::Currency::JewelOfBless:
+        return I18N::Game::BankCurrencyJewelOfBless;
+    case Net::Bank::Currency::JewelOfSoul:
+        return I18N::Game::BankCurrencyJewelOfSoul;
+    case Net::Bank::Currency::JewelOfLife:
+        return I18N::Game::BankCurrencyJewelOfLife;
+    case Net::Bank::Currency::JewelOfCreation:
+        return I18N::Game::BankCurrencyJewelOfCreation;
+    case Net::Bank::Currency::JewelOfChaos:
+        return I18N::Game::BankCurrencyJewelOfChaos;
+    default:
+        return L"";
     }
-}
-
-float CNewUIBankWindow::GetLayerDepth()
-{
-    return 2.2f;
-}
-
-const wchar_t* CNewUIBankWindow::GetCurrencyName(Net::Bank::Currency currency)
-{
-    const auto index = static_cast<size_t>(currency);
-    return index < _countof(CurrencyNames) ? CurrencyNames[index] : L"?";
-}
-
-void CNewUIBankWindow::LoadImages()
-{
-    LoadBitmap(L"Interface\\newui_msgbox_back.jpg", IMAGE_BANK_BACK, GL_LINEAR);
-    LoadBitmap(L"Interface\\newui_item_back01.tga", IMAGE_BANK_TOP, GL_LINEAR);
-    LoadBitmap(L"Interface\\newui_item_back02-L.tga", IMAGE_BANK_LEFT, GL_LINEAR);
-    LoadBitmap(L"Interface\\newui_item_back02-R.tga", IMAGE_BANK_RIGHT, GL_LINEAR);
-    LoadBitmap(L"Interface\\newui_item_back03.tga", IMAGE_BANK_BOTTOM, GL_LINEAR);
-}
-
-void CNewUIBankWindow::UnloadImages()
-{
-    DeleteBitmap(IMAGE_BANK_BOTTOM);
-    DeleteBitmap(IMAGE_BANK_RIGHT);
-    DeleteBitmap(IMAGE_BANK_LEFT);
-    DeleteBitmap(IMAGE_BANK_TOP);
-    DeleteBitmap(IMAGE_BANK_BACK);
 }

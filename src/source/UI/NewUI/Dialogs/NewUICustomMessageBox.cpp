@@ -4647,63 +4647,6 @@ CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::CancelBtnDown(class CNewUIMess
     return CALLBACK_BREAK;
 }
 
-bool SEASON3B::CBankReceiverMsgBoxLayout::SetLayout()
-{
-    CNewUITextInputMsgBox* pMsgBox = GetMsgBox();
-    if (0 == pMsgBox)
-        return false;
-
-    if (false == pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_TEXT, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
-        return false;
-
-    pMsgBox->SetInputBoxOption(UIOPTION_PAINTBACK);
-    pMsgBox->AddMsg(I18N::Game::BankEnterTheReceiver);
-    pMsgBox->AddCallbackFunc(CBankReceiverMsgBoxLayout::ReturnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
-    pMsgBox->AddCallbackFunc(CBankReceiverMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
-    pMsgBox->AddCallbackFunc(CBankReceiverMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
-    pMsgBox->AddCallbackFunc(CBankReceiverMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_PRESSKEY_ESC);
-    return true;
-}
-
-CALLBACK_RESULT SEASON3B::CBankReceiverMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
-{
-    auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
-    if (pMsgBox == nullptr)
-    {
-        return CALLBACK_CONTINUE;
-    }
-
-    wchar_t strText[MAX_TEXT_LENGTH] = { 0, };
-    pMsgBox->GetInputBoxText(strText);
-    if (wcslen(strText) == 0)
-    {
-        return CALLBACK_CONTINUE;
-    }
-
-    g_pBankWindow->SetTransferReceiver(strText);
-    PlayBuffer(SOUND_CLICK01);
-    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
-    return CALLBACK_BREAK;
-}
-
-CALLBACK_RESULT SEASON3B::CBankReceiverMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
-{
-    return ProcessOk(pOwner, xParam);
-}
-
-CALLBACK_RESULT SEASON3B::CBankReceiverMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
-{
-    return ProcessOk(pOwner, xParam);
-}
-
-CALLBACK_RESULT SEASON3B::CBankReceiverMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
-{
-    g_pBankWindow->CancelPendingInput();
-    PlayBuffer(SOUND_CLICK01);
-    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
-    return CALLBACK_BREAK;
-}
-
 bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
 {
     CNewUITextInputMsgBox* pMsgBox = GetMsgBox();
@@ -4739,7 +4682,7 @@ CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessage
         return CALLBACK_CONTINUE;
     }
 
-    g_pBankWindow->FinishValueTransfer(amount);
+    g_pBankWindow->FinishValueAmount(amount);
     PlayBuffer(SOUND_CLICK01);
     g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
     return CALLBACK_BREAK;

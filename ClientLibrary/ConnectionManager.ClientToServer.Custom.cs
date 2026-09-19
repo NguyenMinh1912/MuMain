@@ -259,50 +259,6 @@ public unsafe partial class ConnectionManager
     }
 
     /// <summary>
-    /// Sends the request to transfer an amount of a currency to another account.
-    /// </summary>
-    /// <param name="handle">The handle of the connection.</param>
-    /// <param name="receiverName">The character or login name of the receiver.</param>
-    /// <param name="currency">The currency, as the BankCurrency of the server.</param>
-    /// <param name="amount">The amount the receiver gets.</param>
-    /// <param name="note">The message for the receiver.</param>
-    /// <remarks>Not part of the original protocol (0xFB, 0x02).</remarks>
-    [UnmanagedCallersOnly(EntryPoint = "ConnectionManager_SendBankTransferValue")]
-    public static void SendBankTransferValue(int handle, IntPtr @receiverName, byte @currency, long @amount, IntPtr @note)
-    {
-        var receiver = NativeInterop.PtrToWideString(@receiverName) ?? string.Empty;
-        var message = NativeInterop.PtrToWideString(@note) ?? string.Empty;
-        SendBankPacket(handle, "bank transfer value", 0x02, 83, packet =>
-        {
-            WriteFixedString(packet.Slice(4, 10), receiver);
-            packet[14] = @currency;
-            BinaryPrimitives.WriteInt64LittleEndian(packet[15..], @amount);
-            WriteFixedString(packet.Slice(23, 60), message);
-        });
-    }
-
-    /// <summary>
-    /// Sends the request to transfer an item of the bank to another account.
-    /// </summary>
-    /// <param name="handle">The handle of the connection.</param>
-    /// <param name="receiverName">The character or login name of the receiver.</param>
-    /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>
-    /// <param name="note">The message for the receiver.</param>
-    /// <remarks>Not part of the original protocol (0xFB, 0x03).</remarks>
-    [UnmanagedCallersOnly(EntryPoint = "ConnectionManager_SendBankTransferItem")]
-    public static void SendBankTransferItem(int handle, IntPtr @receiverName, byte @bankSlot, IntPtr @note)
-    {
-        var receiver = NativeInterop.PtrToWideString(@receiverName) ?? string.Empty;
-        var message = NativeInterop.PtrToWideString(@note) ?? string.Empty;
-        SendBankPacket(handle, "bank transfer item", 0x03, 75, packet =>
-        {
-            WriteFixedString(packet.Slice(4, 10), receiver);
-            packet[14] = @bankSlot;
-            WriteFixedString(packet.Slice(15, 60), message);
-        });
-    }
-
-    /// <summary>
     /// Sends the request to offer an item of the bank on the market.
     /// </summary>
     /// <param name="handle">The handle of the connection.</param>

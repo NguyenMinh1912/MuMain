@@ -108,47 +108,6 @@ void PacketFunctions_ClientToServer_Custom::SendBankMoveValue(bool deposit, Net:
     dotnet_SendBankMoveValue(this->GetHandle(), deposit ? 1 : 0, static_cast<BYTE>(currency), amount);
 }
 
-typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankTransferValueFn)(int32_t, const char16_t*, BYTE, int64_t,
-                                                                 const char16_t*);
-
-void PacketFunctions_ClientToServer_Custom::SendBankTransferValue(const wchar_t* receiverName,
-                                                                  Net::Bank::Currency currency, int64_t amount,
-                                                                  const wchar_t* note)
-{
-    static SendBankTransferValueFn dotnet_SendBankTransferValue = nullptr;
-    if (!dotnet_SendBankTransferValue)
-    {
-        dotnet_SendBankTransferValue =
-            LoadManagedSymbol<SendBankTransferValueFn>("ConnectionManager_SendBankTransferValue");
-        if (!dotnet_SendBankTransferValue)
-        {
-            return;
-        }
-    }
-
-    dotnet_SendBankTransferValue(this->GetHandle(), MU_C16(receiverName), static_cast<BYTE>(currency), amount,
-                                 MU_C16(note));
-}
-
-typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankTransferItemFn)(int32_t, const char16_t*, BYTE, const char16_t*);
-
-void PacketFunctions_ClientToServer_Custom::SendBankTransferItem(const wchar_t* receiverName, BYTE bankSlot,
-                                                                 const wchar_t* note)
-{
-    static SendBankTransferItemFn dotnet_SendBankTransferItem = nullptr;
-    if (!dotnet_SendBankTransferItem)
-    {
-        dotnet_SendBankTransferItem =
-            LoadManagedSymbol<SendBankTransferItemFn>("ConnectionManager_SendBankTransferItem");
-        if (!dotnet_SendBankTransferItem)
-        {
-            return;
-        }
-    }
-
-    dotnet_SendBankTransferItem(this->GetHandle(), MU_C16(receiverName), bankSlot, MU_C16(note));
-}
-
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketRegisterItemFn)(int32_t, BYTE, BYTE, int64_t);
 
 void PacketFunctions_ClientToServer_Custom::SendMarketRegisterItem(BYTE bankSlot, Net::Bank::Currency priceCurrency,

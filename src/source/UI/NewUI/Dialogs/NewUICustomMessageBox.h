@@ -1073,9 +1073,9 @@ namespace SEASON3B
     /// Asks for the price of something the player offers on the market of the bank.
     /// </summary>
     /// <remarks>
-    /// Not part of the original client. The three bank dialogs only read a number or a name and
-    /// hand it back to the bank window; what is offered, to whom it goes and in which currency is
-    /// what the window already knows, so the dialogs stay free of the rules.
+    /// Not part of the original client. The two bank dialogs only read a number and hand it back
+    /// to the bank window; what is offered and in which currency is what the window already knows,
+    /// so the dialogs stay free of the rules.
     /// </remarks>
     class CBankPriceMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
     {
@@ -1096,28 +1096,7 @@ namespace SEASON3B
     };
 
     /// <summary>
-    /// Asks for the account a transfer of the bank is addressed to.
-    /// </summary>
-    class CBankReceiverMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
-    {
-        static constexpr float INPUT_WIDTH = 110.0f;
-        static constexpr float INPUT_HEIGHT = 14.0f;
-
-        /// <summary>A character and a login name are at most ten characters long.</summary>
-        static constexpr int INPUT_TEXTLIMIT = 10;
-
-    public:
-        bool SetLayout();
-        static CALLBACK_RESULT ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
-        static CALLBACK_RESULT OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
-        static CALLBACK_RESULT CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
-
-    private:
-        static CALLBACK_RESULT ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
-    };
-
-    /// <summary>
-    /// Asks how much a transfer of the bank carries.
+    /// Asks how much of a currency goes into the bank or comes out of it.
     /// </summary>
     class CBankAmountMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
     {

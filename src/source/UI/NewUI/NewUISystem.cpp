@@ -270,7 +270,7 @@ bool CNewUISystem::LoadMainSceneInterface()
         return false;
 
     m_pNewBankWindow = new CNewUIBankWindow;
-    if (m_pNewBankWindow->Create(m_pNewUIMng, 260, 0) == false)
+    if (m_pNewBankWindow->Create(m_pNewUIMng, m_pNewUI3DRenderMng, 260, 0) == false)
         return false;
 
     m_pNewStorageInventoryExt = new CNewUIStorageInventoryExt;

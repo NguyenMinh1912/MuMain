@@ -5,6 +5,7 @@
 namespace MUnique.Client.Library;
 
 using System;
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
 using MUnique.OpenMU.Network;
@@ -16,6 +17,11 @@ using MUnique.OpenMU.Network.Xor;
 /// </summary>
 public unsafe partial class ConnectionManager
 {
+    /// <summary>
+    /// The length of the identifier of a market offer of the bank, as it travels.
+    /// </summary>
+    private const int ListingIdLength = 16;
+
     private static readonly Xor3Encryptor Xor3Encryptor = new(0);
 
     /// <summary>

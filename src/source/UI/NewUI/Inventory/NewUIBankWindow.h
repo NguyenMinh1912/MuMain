@@ -109,6 +109,12 @@ public:
     /// <summary>Forgets a half finished dialog, because the player cancelled it.</summary>
     void CancelPendingInput();
 
+    /// <summary>
+    /// Gets the name of the currency a price is named in, which is the one selected on the tab of
+    /// the values. The dialog which asks for a price says it, so the player is not left guessing.
+    /// </summary>
+    const wchar_t* GetPriceCurrencyName() const;
+
 private:
     /// <summary>Which of the three tabs the window is showing.</summary>
     enum class Page

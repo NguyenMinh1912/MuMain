@@ -561,6 +561,11 @@ void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
     }
 }
 
+const wchar_t* SEASON3B::CNewUIBankWindow::GetPriceCurrencyName() const
+{
+    return GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency));
+}
+
 void SEASON3B::CNewUIBankWindow::CancelPendingInput()
 {
     m_pendingInput = PendingInput::None;
@@ -1161,19 +1166,14 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
     mu_swprintf(szText, I18N::Game::BankBoxCount, used, BANK_TOTAL_SLOTS);
     g_pRenderText->RenderText(m_Pos.x + 16, m_Pos.y + m_layout.infoRowTop, szText, 110, 0);
 
-    // What is picked, or which currency a price would be asked in when nothing is.
-    g_pRenderText->SetTextColor(255, 210, 76, 255);
+    // The name of what is picked, and nothing at all when nothing is.
     if (m_selectedSlot >= 0 && m_boxes[m_selectedSlot] != nullptr)
     {
+        g_pRenderText->SetTextColor(255, 210, 76, 255);
         GetItemName(m_boxes[m_selectedSlot]->Type, m_boxes[m_selectedSlot]->Level, szText);
+        g_pRenderText->RenderText(m_Pos.x + 130, m_Pos.y + m_layout.infoRowTop, szText, m_layout.width - 146, 0,
+                                  RT3_SORT_CENTER);
     }
-    else
-    {
-        mu_swprintf(szText, L"%ls", GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency)));
-    }
-
-    g_pRenderText->RenderText(m_Pos.x + 130, m_Pos.y + m_layout.infoRowTop, szText, m_layout.width - 146, 0,
-                              RT3_SORT_CENTER);
 
     g_pRenderText->SetTextColor(200, 194, 180, 255);
     mu_swprintf(szText, I18N::Game::BankPageOf, m_itemPage + 1, m_layout.itemPageCount);

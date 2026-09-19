@@ -4598,6 +4598,7 @@ bool SEASON3B::CBankPriceMsgBoxLayout::SetLayout()
 
     pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
     pMsgBox->AddMsg(I18N::Game::BankEnterThePrice);
+    pMsgBox->AddMsg(g_pBankWindow->GetPriceCurrencyName());
     pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::ReturnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
     pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
     pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);

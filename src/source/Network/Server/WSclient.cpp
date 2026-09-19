@@ -6285,12 +6285,14 @@ BOOL ReceiveEquipmentItemExtended(std::span<const BYTE> ReceiveBuffer)
             {
                 g_pStorageInventory->ProcessStorageItemAutoMoveSuccess();
                 g_pStorageInventoryExt->ProcessStorageItemAutoMoveSuccess();
+                g_pBankWindow->ProcessAutoMoveSuccess();
                 shouldResyncInventory = !g_pMyInventory->InsertItem(itemindex, itemData);
             }
             else if (IsInventoryExtensionSlot(itemindex))
             {
                 g_pStorageInventory->ProcessStorageItemAutoMoveSuccess();
                 g_pStorageInventoryExt->ProcessStorageItemAutoMoveSuccess();
+                g_pBankWindow->ProcessAutoMoveSuccess();
                 shouldResyncInventory = !g_pMyInventoryExt->InsertItem(itemindex, itemData);
             }
             else if (IsMyShopSlot(itemindex))

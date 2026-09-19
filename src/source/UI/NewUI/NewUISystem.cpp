@@ -841,11 +841,14 @@ void CNewUISystem::Show(DWORD dwKey)
     }
     else if (dwKey == INTERFACE_BANK)
     {
-        HideAllGroupA();
         m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY);
         g_pBankWindow->SetPos(PanelColumnX(2), 0);
         Show(INTERFACE_HERO_POSITION_INFO);
         g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, true);
+
+        // Asks the server for what the bank holds. The inventory stays open next to it, because
+        // the bank is reached from a button of the inventory and not by walking to an npc.
+        g_pBankWindow->OpeningProcess();
     }
     else if (dwKey == INTERFACE_STORAGE)
     {

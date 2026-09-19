@@ -239,6 +239,23 @@ void PacketFunctions_ClientToServer_Custom::SendMarketList(BYTE page, BYTE price
     dotnet_SendMarketList(this->GetHandle(), page, priceCurrencyFilter, ownOffersOnly ? 1 : 0, MU_C16(nameFilter));
 }
 
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankDialogFn)(int32_t, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendBankDialog(bool open)
+{
+    static SendBankDialogFn dotnet_SendBankDialog = nullptr;
+    if (!dotnet_SendBankDialog)
+    {
+        dotnet_SendBankDialog = LoadManagedSymbol<SendBankDialogFn>("ConnectionManager_SendBankDialog");
+        if (!dotnet_SendBankDialog)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankDialog(this->GetHandle(), open ? 1 : 0);
+}
+
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankLedgerFn)(int32_t, BYTE);
 
 void PacketFunctions_ClientToServer_Custom::SendBankLedger(BYTE page)

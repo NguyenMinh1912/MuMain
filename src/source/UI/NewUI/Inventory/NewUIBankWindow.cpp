@@ -7,6 +7,7 @@
 #include "I18N/All.h"
 
 #include "Audio/DSPlaySound.h"
+#include "Engine/Object/ZzzInventory.h"
 #include "Network/Server/BankStore.h"
 #include "Network/Server/WSclient.h"
 #include "UI/NewUI/Dialogs/NewUICustomMessageBox.h"
@@ -27,28 +28,37 @@ namespace
 /// item names of the jewels are, so they are kept here instead of in the translation tables.
 /// </remarks>
 const wchar_t* const CurrencyNames[] = {
-    L"Zen",      L"WCoinC", L"WCoinP",   L"Goblin",  L"Bless", L"Soul",   L"Life",
+    L"Zen",      L"WCoinC", L"WCoinP",   L"Goblin",  L"Bless", L"Soul",  L"Life",
     L"Creation", L"Chaos",  L"Guardian", L"Harmony", L"Lower", L"Higher",
 };
 
 /// <summary>The geometry of the window. Everything is relative to its top left corner.</summary>
 constexpr int GridOffsetX = 15;
-constexpr int GridOffsetY = 36;
-constexpr int GridEndY = 426;
-constexpr int SelectionLineY = 430;
-constexpr int ButtonRowOneY = 452;
-constexpr int ButtonRowTwoY = 480;
-constexpr int ButtonRowThreeY = 508;
+constexpr int GridOffsetY = 34;
+constexpr int ItemPageLabelY = 170;
+
+constexpr int BalanceTop = 188;
+constexpr int BalanceLineHeight = 14;
+constexpr int BalanceRows = 7;
+constexpr int BalanceColumnWidth = 83;
+constexpr int BalanceMarginX = 12;
+
+constexpr int ButtonRowOneY = 300;
+constexpr int ButtonRowTwoY = 328;
+constexpr int ButtonRowThreeY = 356;
 constexpr int ButtonWidth = 53;
 constexpr int ButtonHeight = 23;
 constexpr int ButtonSpacing = 58;
 constexpr int FirstButtonX = 10;
-constexpr int OfferLineHeight = 38;
+
 constexpr int OfferListTop = 40;
+constexpr int OfferLineHeight = 34;
+constexpr int OfferListBottom = 380;
+constexpr int MarketPageLabelY = 390;
 constexpr int TextMargin = 12;
 
 /// <summary>How many offers fit into the list of the market page.</summary>
-constexpr int MaxVisibleOffers = (GridEndY - OfferListTop) / OfferLineHeight;
+constexpr int MaxVisibleOffers = (OfferListBottom - OfferListTop) / OfferLineHeight;
 
 /// <summary>The value which means "no box is picked".</summary>
 constexpr int NoSlot = -1;
@@ -58,11 +68,15 @@ constexpr int NoSlot = -1;
 /// as an upper bound and moves what the character actually has.
 /// </summary>
 constexpr int64_t Everything = std::numeric_limits<int32_t>::max();
+
+/// <summary>How many currencies there are, which is how many lines the balances have.</summary>
+constexpr int CurrencyCount = static_cast<int>(Net::Bank::Currency::Count);
 } // namespace
 
 CNewUIBankWindow::CNewUIBankWindow()
-    : m_pNewUIMng(nullptr), m_pInventoryCtrl(nullptr), m_page(Page::Storage), m_selectedCurrency(0), m_selectedOffer(0),
-      m_selectedSlot(NoSlot), m_pendingInput(PendingInput::None), m_transferCarriesItem(false)
+    : m_pNewUIMng(nullptr), m_pInventoryCtrl(nullptr), m_page(Page::Storage), m_itemPage(0), m_selectedCurrency(0),
+      m_selectedOffer(0), m_pendingSlot(NoSlot), m_autoMoveItem(nullptr), m_pendingInput(PendingInput::None),
+      m_transferCarriesItem(false)
 {
     m_Pos.x = m_Pos.y = 0;
 }
@@ -83,28 +97,25 @@ bool CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, int x, int y)
     m_pNewUIMng->AddUIObj(INTERFACE_BANK, this);
 
     m_pInventoryCtrl = new CNewUIInventoryCtrl;
-    if (false == m_pInventoryCtrl->Create(STORAGE_TYPE::BANK, g_pNewUI3DRenderMng, g_pNewItemMng, this, x + GridOffsetX,
-                                          y + GridOffsetY, BANK_COLUMNS, BANK_ROWS))
+    if (false == m_pInventoryCtrl->Create(STORAGE_TYPE::BANK, g_pNewUI3DRenderMng, g_pNewItemMng, this,
+                                          x + GridOffsetX, y + GridOffsetY, BANK_COLUMNS, BANK_PAGE_ROWS))
     {
         SAFE_DELETE(m_pInventoryCtrl);
         return false;
     }
 
-    SetPos(x, y);
     LoadImages();
 
-    InitButton(&m_abtn[BTN_PAGE], 0, 0, I18N::Game::BankMarket);
-    InitButton(&m_abtn[BTN_PREV], 0, 0, I18N::Game::BankPreviousPage);
-    InitButton(&m_abtn[BTN_NEXT], 0, 0, I18N::Game::BankNextPage);
-    InitButton(&m_abtn[BTN_DEPOSIT], 0, 0, I18N::Game::BankDepositEverything);
-    InitButton(&m_abtn[BTN_WITHDRAW], 0, 0, I18N::Game::BankWithdrawEverything);
-    InitButton(&m_abtn[BTN_OFFER], 0, 0, I18N::Game::BankOffer);
-    InitButton(&m_abtn[BTN_SEND_ITEM], 0, 0, I18N::Game::BankSendItem);
-    InitButton(&m_abtn[BTN_SEND_VALUE], 0, 0, I18N::Game::BankSendValue);
+    InitButton(&m_abtn[BTN_PAGE], I18N::Game::BankMarket);
+    InitButton(&m_abtn[BTN_PREV], I18N::Game::BankPreviousPage);
+    InitButton(&m_abtn[BTN_NEXT], I18N::Game::BankNextPage);
+    InitButton(&m_abtn[BTN_DEPOSIT], I18N::Game::BankDepositEverything);
+    InitButton(&m_abtn[BTN_WITHDRAW], I18N::Game::BankWithdrawEverything);
+    InitButton(&m_abtn[BTN_SEND_VALUE], I18N::Game::BankSendValue);
+    InitButton(&m_abtn[BTN_OFFER], I18N::Game::BankOffer);
+    InitButton(&m_abtn[BTN_SEND_ITEM], I18N::Game::BankSendItem);
 
-    // The captions were set above; SetPos owns where they sit.
     SetPos(x, y);
-
     Show(false);
 
     return true;
@@ -141,33 +152,66 @@ void CNewUIBankWindow::SetPos(int x, int y)
     m_abtn[BTN_DEPOSIT].ChangeButtonInfo(x + FirstButtonX, y + ButtonRowTwoY, ButtonWidth, ButtonHeight);
     m_abtn[BTN_WITHDRAW].ChangeButtonInfo(x + FirstButtonX + ButtonSpacing, y + ButtonRowTwoY, ButtonWidth,
                                           ButtonHeight);
+    m_abtn[BTN_SEND_VALUE].ChangeButtonInfo(x + FirstButtonX + 2 * ButtonSpacing, y + ButtonRowTwoY, ButtonWidth,
+                                            ButtonHeight);
 
     m_abtn[BTN_OFFER].ChangeButtonInfo(x + FirstButtonX, y + ButtonRowThreeY, ButtonWidth, ButtonHeight);
     m_abtn[BTN_SEND_ITEM].ChangeButtonInfo(x + FirstButtonX + ButtonSpacing, y + ButtonRowThreeY, ButtonWidth,
                                            ButtonHeight);
-    m_abtn[BTN_SEND_VALUE].ChangeButtonInfo(x + FirstButtonX + 2 * ButtonSpacing, y + ButtonRowThreeY, ButtonWidth,
-                                            ButtonHeight);
 }
 
-void CNewUIBankWindow::InitButton(CNewUIButton* pButton, int x, int y, const wchar_t* caption)
+void CNewUIBankWindow::InitButton(CNewUIButton* pButton, const wchar_t* caption)
 {
     pButton->ChangeText(caption);
     pButton->ChangeTextBackColor(RGBA(255, 255, 255, 0));
     pButton->ChangeButtonImgState(true, IMAGE_BANK_BUTTON, true);
-    pButton->ChangeButtonInfo(x, y, ButtonWidth, ButtonHeight);
+    pButton->ChangeButtonInfo(0, 0, ButtonWidth, ButtonHeight);
     pButton->ChangeImgColor(BUTTON_STATE_UP, RGBA(255, 255, 255, 255));
     pButton->ChangeImgColor(BUTTON_STATE_DOWN, RGBA(255, 255, 255, 255));
 }
 
+void CNewUIBankWindow::OpeningProcess()
+{
+    m_page = Page::Storage;
+    m_itemPage = 0;
+    m_selectedOffer = 0;
+    CancelPendingInput();
+
+    m_abtn[BTN_PAGE].ChangeText(I18N::Game::BankMarket);
+    m_abtn[BTN_DEPOSIT].ChangeText(I18N::Game::BankDepositEverything);
+    m_abtn[BTN_WITHDRAW].ChangeText(I18N::Game::BankWithdrawEverything);
+
+    if (SocketClient)
+    {
+        SocketClient->ToGameServer()->SendBankDialog(true);
+    }
+}
+
+void CNewUIBankWindow::ClosingProcess()
+{
+    if (SocketClient)
+    {
+        SocketClient->ToGameServer()->SendBankDialog(false);
+    }
+
+    CancelPendingInput();
+    m_autoMoveItem = nullptr;
+}
+
 bool CNewUIBankWindow::UpdateMouseEvent()
 {
-    // Before the item control gets the event: it may consume the click, and the box to sell or to
-    // send is picked with exactly such a click.
-    ProcessSelection();
-
     if (m_page == Page::Storage && m_pInventoryCtrl && false == m_pInventoryCtrl->UpdateMouseEvent())
     {
         return false;
+    }
+
+    if (m_page == Page::Storage)
+    {
+        ProcessInventoryCtrl();
+    }
+    else
+    {
+        ProcessOfferSelection();
     }
 
     if (ProcessButtons())
@@ -180,6 +224,11 @@ bool CNewUIBankWindow::UpdateMouseEvent()
         if (g_pNewUISystem->HandleFrameCornerClose(m_Pos, INTERFACE_BANK))
         {
             return false;
+        }
+
+        if (m_page == Page::Storage)
+        {
+            ProcessBalanceSelection();
         }
 
         if (IsPress(VK_RBUTTON))
@@ -241,7 +290,7 @@ void CNewUIBankWindow::ShowRefusedRequest()
     if (result == Net::Bank::ResultCode::Success)
     {
         // What succeeded is visible: the balances and the boxes were sent with the answer.
-        m_selectedSlot = NoSlot;
+        m_pendingSlot = NoSlot;
         return;
     }
 
@@ -286,7 +335,7 @@ bool CNewUIBankWindow::Render()
         RenderMarketPage();
     }
 
-    const int lastButton = m_page == Page::Storage ? MAX_BTN : BTN_OFFER;
+    const int lastButton = m_page == Page::Storage ? MAX_BTN : BTN_SEND_VALUE;
     for (int i = 0; i < lastButton; ++i)
     {
         m_abtn[i].Render();
@@ -325,24 +374,43 @@ void CNewUIBankWindow::RenderStoragePage()
         m_pInventoryCtrl->Render();
     }
 
-    const auto currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
-    const int64_t balance = Net::Bank::Store::Instance().GetBalance(currency);
-
-    wchar_t line[128];
-    if (m_selectedSlot == NoSlot)
-    {
-        mu_swprintf_s(line, _countof(line), L"%ls: %lld", GetCurrencyName(currency), static_cast<long long>(balance));
-    }
-    else
-    {
-        mu_swprintf_s(line, _countof(line), L"%ls: %lld   [%d]", GetCurrencyName(currency),
-                      static_cast<long long>(balance), m_selectedSlot);
-    }
-
     g_pRenderText->SetFont(g_hFont);
     g_pRenderText->SetBgColor(0);
-    g_pRenderText->SetTextColor(255, 220, 150, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + SelectionLineY, line, BANK_WIDTH, 0, RT3_SORT_CENTER);
+
+    wchar_t pageText[64];
+    mu_swprintf_s(pageText, _countof(pageText), I18N::Game::BankPageOf, m_itemPage + 1, ITEM_PAGE_COUNT);
+    g_pRenderText->SetTextColor(200, 200, 200, 255);
+    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + ItemPageLabelY, pageText, BANK_WIDTH, 0, RT3_SORT_CENTER);
+
+    RenderBalances();
+}
+
+void CNewUIBankWindow::RenderBalances()
+{
+    const auto& store = Net::Bank::Store::Instance();
+
+    for (int i = 0; i < CurrencyCount; ++i)
+    {
+        const int column = i / BalanceRows;
+        const int row = i % BalanceRows;
+        const int lineX = m_Pos.x + BalanceMarginX + column * BalanceColumnWidth;
+        const int lineY = m_Pos.y + BalanceTop + row * BalanceLineHeight;
+
+        if (i == m_selectedCurrency)
+        {
+            g_pRenderText->SetTextColor(255, 220, 150, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(190, 190, 190, 255);
+        }
+
+        const auto currency = static_cast<Net::Bank::Currency>(i);
+        wchar_t line[64];
+        mu_swprintf_s(line, _countof(line), L"%ls %lld", GetCurrencyName(currency),
+                      static_cast<long long>(store.GetBalance(currency)));
+        g_pRenderText->RenderText(lineX, lineY, line);
+    }
 }
 
 void CNewUIBankWindow::RenderMarketPage()
@@ -382,14 +450,14 @@ void CNewUIBankWindow::RenderMarketPage()
         mu_swprintf_s(price, _countof(price), L"%lld %ls - %ls", static_cast<long long>(offer.PriceAmount),
                       GetCurrencyName(offer.PriceCurrency), offer.SellerName.c_str());
         g_pRenderText->SetTextColor(180, 180, 180, 255);
-        g_pRenderText->RenderText(m_Pos.x + TextMargin, lineY + 16, price);
+        g_pRenderText->RenderText(m_Pos.x + TextMargin, lineY + 15, price);
     }
 
     wchar_t pageText[64];
     mu_swprintf_s(pageText, _countof(pageText), I18N::Game::BankPageOf, store.GetOfferPage() + 1,
                   store.GetOfferPageCount());
     g_pRenderText->SetTextColor(200, 200, 200, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + SelectionLineY, pageText, BANK_WIDTH, 0, RT3_SORT_CENTER);
+    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + MarketPageLabelY, pageText, BANK_WIDTH, 0, RT3_SORT_CENTER);
 }
 
 bool CNewUIBankWindow::ProcessButtons()
@@ -422,18 +490,16 @@ bool CNewUIBankWindow::ProcessButtons()
 
 bool CNewUIBankWindow::ProcessStorageButtons()
 {
-    const int currencyCount = static_cast<int>(Net::Bank::Currency::Count);
-
     if (m_abtn[BTN_PREV].UpdateMouseEvent())
     {
-        m_selectedCurrency = (m_selectedCurrency + currencyCount - 1) % currencyCount;
+        ShowItemPage(m_itemPage - 1);
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
 
     if (m_abtn[BTN_NEXT].UpdateMouseEvent())
     {
-        m_selectedCurrency = (m_selectedCurrency + 1) % currencyCount;
+        ShowItemPage(m_itemPage + 1);
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
@@ -452,9 +518,17 @@ bool CNewUIBankWindow::ProcessStorageButtons()
         return true;
     }
 
+    if (m_abtn[BTN_SEND_VALUE].UpdateMouseEvent())
+    {
+        m_transferCarriesItem = false;
+        m_pendingInput = PendingInput::Receiver;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
     if (m_abtn[BTN_OFFER].UpdateMouseEvent())
     {
-        if (RequireSelectedItem())
+        if (TakePickedBankSlot(m_pendingSlot))
         {
             m_pendingInput = PendingInput::Price;
         }
@@ -465,20 +539,12 @@ bool CNewUIBankWindow::ProcessStorageButtons()
 
     if (m_abtn[BTN_SEND_ITEM].UpdateMouseEvent())
     {
-        if (RequireSelectedItem())
+        if (TakePickedBankSlot(m_pendingSlot))
         {
             m_transferCarriesItem = true;
             m_pendingInput = PendingInput::Receiver;
         }
 
-        PlayBuffer(SOUND_CLICK01);
-        return true;
-    }
-
-    if (m_abtn[BTN_SEND_VALUE].UpdateMouseEvent())
-    {
-        m_transferCarriesItem = false;
-        m_pendingInput = PendingInput::Receiver;
         PlayBuffer(SOUND_CLICK01);
         return true;
     }
@@ -529,58 +595,166 @@ bool CNewUIBankWindow::ProcessMarketButtons()
     return false;
 }
 
-void CNewUIBankWindow::ProcessSelection()
+void CNewUIBankWindow::ProcessInventoryCtrl()
 {
-    if (!CheckMouseIn(m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT))
+    if (m_pInventoryCtrl == nullptr)
     {
         return;
     }
 
-    if (m_page == Page::Market)
+    CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
+    if (pPickedItem == nullptr)
     {
-        if (!IsPress(VK_LBUTTON))
+        // Nothing on the cursor, so the right button means "move this one over by itself".
+        if (IsPress(VK_RBUTTON))
         {
-            return;
-        }
-
-        const int relativeY = MouseY - (m_Pos.y + OfferListTop);
-        if (relativeY < 0)
-        {
-            return;
-        }
-
-        const int index = relativeY / OfferLineHeight;
-        const auto& offers = Net::Bank::Store::Instance().GetOffers();
-        if (index < static_cast<int>(offers.size()) && index < MaxVisibleOffers)
-        {
-            m_selectedOffer = index;
+            ProcessAutoMove();
         }
 
         return;
     }
 
-    // The left button drags items, so the box to sell or to send is picked with the right one.
-    if (!IsPress(VK_RBUTTON) || m_pInventoryCtrl == nullptr)
+    ITEM* pItemObj = pPickedItem->GetItem();
+    if (pItemObj == nullptr)
     {
         return;
     }
 
-    const int pointed = m_pInventoryCtrl->GetPointedSquareIndex();
-    if (pointed >= 0 && m_pInventoryCtrl->FindItem(pointed) != nullptr)
+    if (IsPress(VK_LBUTTON) || IsRelease(VK_LBUTTON))
     {
-        m_selectedSlot = pointed;
+        const int targetSlot = pPickedItem->GetTargetLinealPos(m_pInventoryCtrl);
+        if (targetSlot >= 0 && m_pInventoryCtrl->CanMove(targetSlot, pItemObj))
+        {
+            SendRequestEquipmentItem(pPickedItem->GetSourceStorageType(), pPickedItem->GetSourceLinealPos(), pItemObj,
+                                     m_pInventoryCtrl->GetStorageType(), targetSlot);
+        }
+    }
+    else
+    {
+        m_pInventoryCtrl->SetSquareColorNormal(0.1f, 0.4f, 0.8f);
+    }
+}
+
+void CNewUIBankWindow::ProcessAutoMove()
+{
+    if (m_pInventoryCtrl == nullptr || m_autoMoveItem != nullptr)
+    {
+        return;
+    }
+
+    ITEM* pItemObj = m_pInventoryCtrl->FindItemAtPt(MouseX, MouseY);
+    if (pItemObj == nullptr)
+    {
+        return;
+    }
+
+    const int targetSlot = g_pMyInventory->FindEmptySlotIncludingExtensions(pItemObj);
+    if (targetSlot == -1)
+    {
+        return;
+    }
+
+    const int sourceSlot =
+        pItemObj->y * m_pInventoryCtrl->GetNumberOfColumn() + pItemObj->x + m_pInventoryCtrl->GetIndexOffset();
+
+    // Remembered, not removed: the box only empties once the server confirmed the move.
+    m_autoMoveItem = pItemObj;
+    SendRequestEquipmentItem(STORAGE_TYPE::BANK, sourceSlot, pItemObj, STORAGE_TYPE::INVENTORY, targetSlot);
+    PlayBuffer(SOUND_GET_ITEM01);
+}
+
+void CNewUIBankWindow::ProcessAutoMoveSuccess()
+{
+    if (m_autoMoveItem == nullptr || m_pInventoryCtrl == nullptr)
+    {
+        return;
+    }
+
+    m_pInventoryCtrl->RemoveItem(m_autoMoveItem);
+    m_autoMoveItem = nullptr;
+}
+
+void CNewUIBankWindow::ProcessOfferSelection()
+{
+    if (!CheckMouseIn(m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT) || !IsPress(VK_LBUTTON))
+    {
+        return;
+    }
+
+    const int relativeY = MouseY - (m_Pos.y + OfferListTop);
+    if (relativeY < 0)
+    {
+        return;
+    }
+
+    const int index = relativeY / OfferLineHeight;
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    if (index < static_cast<int>(offers.size()) && index < MaxVisibleOffers)
+    {
+        m_selectedOffer = index;
+    }
+}
+
+void CNewUIBankWindow::ProcessBalanceSelection()
+{
+    if (!IsPress(VK_LBUTTON))
+    {
+        return;
+    }
+
+    const int relativeX = MouseX - (m_Pos.x + BalanceMarginX);
+    const int relativeY = MouseY - (m_Pos.y + BalanceTop);
+    if (relativeX < 0 || relativeY < 0 || relativeY >= BalanceRows * BalanceLineHeight)
+    {
+        return;
+    }
+
+    const int index = (relativeX / BalanceColumnWidth) * BalanceRows + relativeY / BalanceLineHeight;
+    if (index >= 0 && index < CurrencyCount)
+    {
+        m_selectedCurrency = index;
         PlayBuffer(SOUND_CLICK01);
     }
 }
 
-bool CNewUIBankWindow::RequireSelectedItem()
+void CNewUIBankWindow::ShowItemPage(int page)
 {
-    if (m_selectedSlot != NoSlot && m_pInventoryCtrl && m_pInventoryCtrl->FindItem(m_selectedSlot) != nullptr)
+    if (m_pInventoryCtrl == nullptr || page < 0 || page >= ITEM_PAGE_COUNT)
     {
+        return;
+    }
+
+    m_itemPage = page;
+    m_pInventoryCtrl->RemoveAllItems();
+    m_pInventoryCtrl->SetIndexOffset(page * ITEMS_PER_PAGE);
+
+    const int first = page * ITEMS_PER_PAGE;
+    const int last = first + ITEMS_PER_PAGE;
+    for (const auto& stored : m_storedItems)
+    {
+        if (stored.first >= first && stored.first < last)
+        {
+            m_pInventoryCtrl->AddItem(stored.first, stored.second);
+        }
+    }
+}
+
+bool CNewUIBankWindow::TakePickedBankSlot(int& slot)
+{
+    slot = NoSlot;
+
+    CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
+    if (pPickedItem != nullptr && pPickedItem->GetItem() != nullptr
+        && pPickedItem->GetSourceStorageType() == STORAGE_TYPE::BANK)
+    {
+        slot = pPickedItem->GetSourceLinealPos();
+
+        // The item goes back into its box while the dialog asks; the server is told the box, and
+        // an item left hanging on the cursor would only be in the way.
+        CNewUIInventoryCtrl::BackupPickedItem();
         return true;
     }
 
-    m_selectedSlot = NoSlot;
     g_pSystemLogBox->AddText(I18N::Game::BankSelectAnItemFirst, SEASON3B::TYPE_SYSTEM_MESSAGE);
     return false;
 }
@@ -632,13 +806,13 @@ void CNewUIBankWindow::CancelSelectedOffer()
 
 void CNewUIBankWindow::FinishOffer(int64_t price)
 {
-    if (!SocketClient || !RequireSelectedItem())
+    if (!SocketClient || m_pendingSlot == NoSlot)
     {
         return;
     }
 
-    SocketClient->ToGameServer()->SendMarketRegisterItem(static_cast<BYTE>(m_selectedSlot),
-                                                         static_cast<Net::Bank::Currency>(m_selectedCurrency), price);
+    SocketClient->ToGameServer()->SendMarketRegisterItem(static_cast<BYTE>(m_pendingSlot),
+                                                        static_cast<Net::Bank::Currency>(m_selectedCurrency), price);
 }
 
 void CNewUIBankWindow::SetTransferReceiver(const wchar_t* receiverName)
@@ -657,10 +831,10 @@ void CNewUIBankWindow::SetTransferReceiver(const wchar_t* receiverName)
         return;
     }
 
-    if (SocketClient && RequireSelectedItem())
+    if (SocketClient && m_pendingSlot != NoSlot)
     {
         SocketClient->ToGameServer()->SendBankTransferItem(m_transferReceiver.c_str(),
-                                                           static_cast<BYTE>(m_selectedSlot), L"");
+                                                          static_cast<BYTE>(m_pendingSlot), L"");
     }
 }
 
@@ -679,6 +853,7 @@ void CNewUIBankWindow::FinishValueTransfer(int64_t amount)
 void CNewUIBankWindow::CancelPendingInput()
 {
     m_pendingInput = PendingInput::None;
+    m_pendingSlot = NoSlot;
     m_transferReceiver.clear();
 }
 
@@ -690,38 +865,38 @@ void CNewUIBankWindow::RequestMarketPage(BYTE page)
     }
 }
 
-void CNewUIBankWindow::ClosingProcess()
-{
-    if (SocketClient)
-    {
-        SocketClient->ToGameServer()->SendCloseNpcRequest();
-    }
-
-    m_page = Page::Storage;
-    m_selectedOffer = 0;
-    m_selectedSlot = NoSlot;
-    CancelPendingInput();
-    m_abtn[BTN_PAGE].ChangeText(I18N::Game::BankMarket);
-    m_abtn[BTN_DEPOSIT].ChangeText(I18N::Game::BankDepositEverything);
-    m_abtn[BTN_WITHDRAW].ChangeText(I18N::Game::BankWithdrawEverything);
-}
-
 bool CNewUIBankWindow::InsertItem(int iIndex, std::span<const BYTE> pbyItemPacket)
 {
+    if (iIndex < 0 || iIndex >= BANK_TOTAL_SLOTS)
+    {
+        return false;
+    }
+
+    m_storedItems[iIndex] = std::vector<BYTE>(pbyItemPacket.begin(), pbyItemPacket.end());
+
+    const int first = m_itemPage * ITEMS_PER_PAGE;
+    if (iIndex < first || iIndex >= first + ITEMS_PER_PAGE)
+    {
+        // The box belongs to a page which is not on screen; it is drawn when that page is shown.
+        return true;
+    }
+
     return m_pInventoryCtrl != nullptr && m_pInventoryCtrl->AddItem(iIndex, pbyItemPacket);
 }
 
 void CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span<const BYTE> pbyItemPacket)
 {
-    if (m_pInventoryCtrl == nullptr)
+    if (m_pInventoryCtrl == nullptr || nIndex < 0 || nIndex >= BANK_TOTAL_SLOTS)
     {
         return;
     }
 
     CNewUIInventoryCtrl::DeletePickedItem();
 
-    const int boxes = m_pInventoryCtrl->GetNumberOfColumn() * m_pInventoryCtrl->GetNumberOfRow();
-    if (nIndex >= 0 && nIndex < boxes)
+    m_storedItems[nIndex] = std::vector<BYTE>(pbyItemPacket.begin(), pbyItemPacket.end());
+
+    const int first = m_itemPage * ITEMS_PER_PAGE;
+    if (nIndex >= first && nIndex < first + ITEMS_PER_PAGE)
     {
         m_pInventoryCtrl->RemoveItemAt(nIndex);
         m_pInventoryCtrl->AddItem(nIndex, pbyItemPacket);
@@ -730,7 +905,9 @@ void CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span<const BYT
 
 void CNewUIBankWindow::DeleteAllItems()
 {
-    m_selectedSlot = NoSlot;
+    m_pendingSlot = NoSlot;
+    m_autoMoveItem = nullptr;
+    m_storedItems.clear();
 
     if (m_pInventoryCtrl)
     {

@@ -49,6 +49,8 @@ namespace SEASON3B
             IMAGE_INVENTORY_EXIT_BTN, //"newui_exit_00.tga"
             IMAGE_INVENTORY_REPAIR_BTN, //"newui_repair_00.tga"
             IMAGE_INVENTORY_EXPAND_BTN, //"newui_expansion_btn.tga"
+            // The bank button borrows the empty text button instead of shipping an icon.
+            IMAGE_INVENTORY_BANK_BTN = CNewUIMessageBoxMng::IMAGE_MSGBOX_BTN_EMPTY_VERY_SMALL,
         };
 
         enum MYSHOP_MODE
@@ -87,6 +89,7 @@ namespace SEASON3B
         CNewUIButton m_BtnExit;
         CNewUIButton m_BtnMyShop;
         CNewUIButton m_BtnExpand;
+        CNewUIButton m_BtnBank;
 
         MYSHOP_MODE m_MyShopMode;
         SEASON3B::REPAIR_MODE m_RepairMode;

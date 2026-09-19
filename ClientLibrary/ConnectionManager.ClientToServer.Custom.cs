@@ -389,6 +389,21 @@ public unsafe partial class ConnectionManager
     }
 
     /// <summary>
+    /// Tells the server that the bank dialog was opened or closed.
+    /// </summary>
+    /// <param name="handle">The handle of the connection.</param>
+    /// <param name="open">1 when the dialog was opened, 0 when it was closed.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xFB, 0x0A). The bank is reached from a button of the
+    /// inventory rather than by talking to an npc, so opening it is a request of its own.
+    /// </remarks>
+    [UnmanagedCallersOnly(EntryPoint = "ConnectionManager_SendBankDialog")]
+    public static void SendBankDialog(int handle, byte @open)
+    {
+        SendBankPacket(handle, "bank dialog", 0x0A, 5, packet => packet[4] = @open);
+    }
+
+    /// <summary>
     /// Sends the request to show a page of the ledger of the bank.
     /// </summary>
     /// <param name="handle">The handle of the connection.</param>

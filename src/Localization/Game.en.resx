@@ -13066,4 +13066,7 @@
   <data name="Bank select an item first" xml:space="preserve">
     <value>Right click an item in the bank first</value>
   </data>
+  <data name="Bank short label" xml:space="preserve">
+    <value>Bank</value>
+  </data>
 </root>

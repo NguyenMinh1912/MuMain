@@ -176,6 +176,16 @@ public:
     void SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly, const wchar_t* nameFilter);
 
     /// <summary>
+    /// Tells the server that the bank dialog was opened or closed.
+    /// </summary>
+    /// <param name="open">True when the dialog was opened, false when it was closed.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xFB, 0x0A). The bank is reached from a button of the
+    /// inventory, so opening it is a request of its own rather than the answer to a talk.
+    /// </remarks>
+    void SendBankDialog(bool open);
+
+    /// <summary>
     /// Sends the request to show a page of the ledger of the bank.
     /// </summary>
     /// <param name="page">The page to show, starting at 0.</param>

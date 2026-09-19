@@ -13074,4 +13074,7 @@
   <data name="Bank select an item first" xml:space="preserve">
     <value>Hãy bấm chuột phải vào một món đồ trong ngân hàng trước</value>
   </data>
+  <data name="Bank short label" xml:space="preserve">
+    <value>Bank</value>
+  </data>
 </root>

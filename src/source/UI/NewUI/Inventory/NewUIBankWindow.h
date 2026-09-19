@@ -29,22 +29,14 @@ namespace SEASON3B
 /// click on a box picks that box, and the buttons act on what is picked. The boxes are drawn as
 /// equally sized tiles rather than as the grid of the inventory, because a box of the bank holds
 /// one item whatever its size is - which is also how the server counts them.
+///
+/// The window draws its own panel, boxes and buttons out of plain quads instead of borrowing the
+/// textures of the vault dialog. Those textures are cut for a window of 190 pixels: stretched over
+/// a wider one they leave half of it bare, which is exactly what they did here.
 /// </remarks>
 class CNewUIBankWindow : public CNewUIObj, public INewUI3DRenderObj
 {
 public:
-    enum IMAGE_LIST
-    {
-        // The window borrows the frame of the vault instead of shipping its own, so it needs no
-        // new texture files.
-        IMAGE_BANK_BACK = CNewUIMessageBoxMng::IMAGE_MSGBOX_BACK,
-        IMAGE_BANK_TOP = CNewUIMyInventory::IMAGE_INVENTORY_BACK_TOP,
-        IMAGE_BANK_LEFT = CNewUIMyInventory::IMAGE_INVENTORY_BACK_LEFT,
-        IMAGE_BANK_RIGHT = CNewUIMyInventory::IMAGE_INVENTORY_BACK_RIGHT,
-        IMAGE_BANK_BOTTOM = CNewUIMyInventory::IMAGE_INVENTORY_BACK_BOTTOM,
-        IMAGE_BANK_BUTTON = CNewUIMessageBoxMng::IMAGE_MSGBOX_BTN_EMPTY_VERY_SMALL,
-    };
-
     /// <summary>How many boxes the bank has, which has to match what the server is configured with.</summary>
     static constexpr int BANK_TOTAL_SLOTS = 100;
 
@@ -52,10 +44,7 @@ public:
     /// Gets how wide the window is, so that whoever places it can put it beside the inventory
     /// instead of on top of it.
     /// </summary>
-    static constexpr int GetWindowWidth()
-    {
-        return static_cast<int>(BANK_WIDTH);
-    }
+    static constexpr int GetWindowWidth();
 
     CNewUIBankWindow();
     ~CNewUIBankWindow() override;
@@ -170,39 +159,57 @@ private:
         MAX_BTN
     };
 
-    static constexpr float BANK_WIDTH = 380.0f;
-    static constexpr float BANK_HEIGHT = 462.0f;
+    /// <summary>The size of the window. Everything else follows from it.</summary>
+    static constexpr int BANK_WIDTH = 380;
+    static constexpr int BANK_HEIGHT = 424;
 
-    /// <summary>The tiles of one page of the item boxes.</summary>
-    static constexpr int TILE_SIZE = 68;
-    static constexpr int TILE_COLUMNS = 5;
-    static constexpr int TILE_ROWS = 4;
-    static constexpr int ITEMS_PER_PAGE = TILE_COLUMNS * TILE_ROWS;
-    static constexpr int ITEM_PAGE_COUNT = BANK_TOTAL_SLOTS / ITEMS_PER_PAGE;
+    /// <summary>
+    /// Where every part of the window stands, in window coordinates.
+    /// </summary>
+    /// <remarks>
+    /// Nothing here is a number typed twice. <see cref="BuildLayout"/> works it out from the size
+    /// of the window, so a window of another size lays itself out - including how many boxes and
+    /// how many rows of a list fit - instead of needing every coordinate corrected by hand. It is
+    /// also the one place drawing and hit testing both read, so the two cannot drift apart.
+    /// </remarks>
+    struct Layout
+    {
+        int width;
+        int height;
 
-    /// <summary>Where the rows of the window stand, relative to its own corner.</summary>
-    static constexpr int TAB_ROW_TOP = 28;
-    static constexpr int TAB_WIDTH = 120;
-    static constexpr int TAB_HEIGHT = 24;
-    static constexpr int CONTENT_TOP = 56;
-    static constexpr int TILE_ORIGIN_X = 20;
-    static constexpr int INFO_ROW_TOP = 334;
-    static constexpr int PAGE_ROW_TOP = 354;
-    static constexpr int BUTTON_ROW_TOP = 380;
-    static constexpr int BUTTON_WIDTH = 96;
-    static constexpr int BUTTON_HEIGHT = 26;
+        RECT tab[3];
 
-    /// <summary>How many rows the lists have and how tall one of them is.</summary>
-    static constexpr int MARKET_ROWS = 13;
-    static constexpr int LIST_LINE_HEIGHT = 18;
+        int contentTop;
+        int contentBottom;
 
-    /// <summary>Where the first row of each of the two groups of currencies stands.</summary>
-    static constexpr int MONEY_ROWS_TOP = 22;
-    static constexpr int JEWEL_HEADER_TOP = 106;
-    static constexpr int JEWEL_ROWS_TOP = 128;
+        int tileSize;
+        int tileColumns;
+        int tileRows;
+        int tileOriginX;
+        int tileOriginY;
+        int itemsPerPage;
+        int itemPageCount;
+
+        int infoRowTop;
+        int pageRowTop;
+        RECT prevButton;
+        RECT nextButton;
+        RECT button[3];
+
+        int listLineHeight;
+        int moneyHeaderTop;
+        int moneyRowsTop;
+        int jewelHeaderTop;
+        int jewelRowsTop;
+        int marketHeaderTop;
+        int marketRowsTop;
+        int marketRows;
+    };
+
+    void BuildLayout();
+    void ApplyLayoutToButtons();
 
     void InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot);
-    void LayoutButtons();
     void ShowRefusedRequest();
     void OpenPendingInput();
 
@@ -212,6 +219,9 @@ private:
     void RenderValuesPage();
     void RenderMarketPage();
     void RenderHoveredItemInfo();
+
+    /// <summary>Draws the plate of a button and then lets the button draw its own caption.</summary>
+    void RenderButton(CNewUIButton& button, bool highlighted);
 
     bool ProcessTabs();
     bool ProcessButtons();
@@ -225,7 +235,7 @@ private:
     /// <summary>Gets the box the cursor is over, or -1 when it is over none.</summary>
     int GetTileAtCursor() const;
 
-    /// <summary>Gets where a box of the shown page is drawn.</summary>
+    /// <summary>Gets where a box of the shown page is drawn, in screen coordinates.</summary>
     void GetTileRect(int slotOnPage, RECT& rect) const;
 
     /// <summary>Gets where the row of a currency is drawn, which is also where it is clicked.</summary>
@@ -249,15 +259,13 @@ private:
     /// <summary>Gets the name of a currency as it is listed.</summary>
     static const wchar_t* GetCurrencyName(Net::Bank::Currency currency);
 
-    /// <summary>Gets how many of the currencies are money rather than jewels.</summary>
-    static int GetMoneyCurrencyCount();
-
     /// <summary>Draws what has to be drawn above the boxes, which is the tooltip of an item.</summary>
     static void UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB);
 
     CNewUIManager* m_pNewUIMng;
     CNewUI3DRenderMng* m_pNewUI3DRenderMng;
     POINT m_Pos;
+    Layout m_layout;
 
     CNewUIButton m_abtn[MAX_BTN];
 
@@ -289,4 +297,9 @@ private:
     /// <summary>How much of a currency is being offered, while its price is still being asked for.</summary>
     int64_t m_offerAmount;
 };
+
+inline constexpr int CNewUIBankWindow::GetWindowWidth()
+{
+    return BANK_WIDTH;
+}
 } // namespace SEASON3B

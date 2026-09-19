@@ -18,19 +18,55 @@
 #include "UI/NewUI/NewUICommon.h"
 #include "UI/NewUI/NewUISystem.h"
 
+#include <algorithm>
+
 namespace
 {
-/// <summary>The tint of the box or the row the player picked.</summary>
-constexpr unsigned int PICKED_COLOR = 0x80FFC83Cu;
+/// <summary>The body of the window, dark enough for the world behind it to stay behind it.</summary>
+constexpr unsigned int PANEL_COLOR = 0xEE0E0F12u;
 
-/// <summary>The tint of the box or the row the cursor is over.</summary>
-constexpr unsigned int HOVERED_COLOR = 0x33FFFFFFu;
+/// <summary>The bronze edge of the window and the darker line just inside it.</summary>
+constexpr unsigned int PANEL_EDGE_COLOR = 0xFF6B5A3Cu;
+constexpr unsigned int PANEL_INNER_COLOR = 0xFF241F16u;
 
-/// <summary>The tint of an empty box, so that the tiles are visible before anything is in them.</summary>
-constexpr unsigned int EMPTY_BOX_COLOR = 0x40202830u;
+/// <summary>The area the boxes stand in, and the lines between them.</summary>
+constexpr unsigned int GRID_BACK_COLOR = 0x99000000u;
+constexpr unsigned int GRID_FRAME_COLOR = 0xFF4A4235u;
+constexpr unsigned int TILE_COLOR = 0xFF161A20u;
+constexpr unsigned int TILE_LINE_COLOR = 0xFF2F3640u;
+
+/// <summary>What is picked, and what the cursor is over.</summary>
+constexpr unsigned int PICKED_FILL_COLOR = 0x40FFC83Cu;
+constexpr unsigned int PICKED_EDGE_COLOR = 0xFFFFC83Cu;
+constexpr unsigned int HOVERED_FILL_COLOR = 0x22FFFFFFu;
+
+/// <summary>The plate of a button, in its three states, and its edge.</summary>
+constexpr unsigned int BUTTON_UP_COLOR = 0xFF433D31u;
+constexpr unsigned int BUTTON_OVER_COLOR = 0xFF564E3Eu;
+constexpr unsigned int BUTTON_DOWN_COLOR = 0xFF2B261Du;
+constexpr unsigned int BUTTON_EDGE_COLOR = 0xFF8A7444u;
+constexpr unsigned int BUTTON_EDGE_ON_COLOR = 0xFFFFC83Cu;
+
+/// <summary>The line which separates a heading from the rows under it.</summary>
+constexpr unsigned int HEADING_LINE_COLOR = 0x804A5566u;
 
 /// <summary>How many of the currencies are money; the rest are jewels.</summary>
 constexpr int MONEY_CURRENCY_COUNT = 4;
+
+/// <summary>Draws the four edges of a rectangle, which is the only border this window needs.</summary>
+void RenderBorder(int x, int y, int width, int height, unsigned int color, int thickness = 1)
+{
+    const float fx = static_cast<float>(x);
+    const float fy = static_cast<float>(y);
+    const float fw = static_cast<float>(width);
+    const float fh = static_cast<float>(height);
+    const float ft = static_cast<float>(thickness);
+
+    RenderColorQuadARGB(fx, fy, fw, ft, color);
+    RenderColorQuadARGB(fx, fy + fh - ft, fw, ft, color);
+    RenderColorQuadARGB(fx, fy + ft, ft, fh - 2.f * ft, color);
+    RenderColorQuadARGB(fx + fw - ft, fy + ft, ft, fh - 2.f * ft, color);
+}
 
 /// <summary>Writes an amount with a separator every three digits, which is how balances are read.</summary>
 void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
@@ -63,13 +99,14 @@ void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 } // namespace
 
 SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
-    : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_page(Page::Items), m_itemPage(0), m_selectedCurrency(0),
-      m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1), m_takeSourceSlot(-1), m_ownOffersOnly(false),
-      m_pendingInput(PendingInput::None), m_offerCarriesItem(true), m_offerAmount(0)
+    : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_layout{}, m_page(Page::Items), m_itemPage(0),
+      m_selectedCurrency(0), m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1), m_takeSourceSlot(-1),
+      m_ownOffersOnly(false), m_pendingInput(PendingInput::None), m_offerCarriesItem(true), m_offerAmount(0)
 {
     m_Pos.x = 0;
     m_Pos.y = 0;
     m_boxes.fill(nullptr);
+    BuildLayout();
 }
 
 SEASON3B::CNewUIBankWindow::~CNewUIBankWindow()
@@ -90,8 +127,6 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     m_pNewUI3DRenderMng = pNewUI3DRenderMng;
     m_pNewUI3DRenderMng->Add3DRenderObj(this, INVENTORY_CAMERA_Z_ORDER);
 
-    SetPos(x, y);
-
     InitButton(&m_abtn[BTN_TAB_ITEMS], &I18N::Game::BankStorage);
     InitButton(&m_abtn[BTN_TAB_VALUES], &I18N::Game::BankValues);
     InitButton(&m_abtn[BTN_TAB_MARKET], &I18N::Game::BankMarket);
@@ -106,7 +141,7 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     InitButton(&m_abtn[BTN_CANCEL_OFFER], &I18N::Game::BankCancelOffer);
     InitButton(&m_abtn[BTN_MINE], &I18N::Game::BankMyOffersOnly);
 
-    LayoutButtons();
+    SetPos(x, y);
 
     Show(false);
 
@@ -132,40 +167,120 @@ void SEASON3B::CNewUIBankWindow::Release()
 
 void SEASON3B::CNewUIBankWindow::InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot)
 {
+    // The button gets no image: this window draws the plate under every caption itself, because the
+    // images of the original dialogs are cut for one size and nothing else.
     pButton->ChangeText(captionSlot);
     pButton->ChangeTextBackColor(RGBA(255, 255, 255, 0));
-    pButton->ChangeButtonImgState(true, IMAGE_BANK_BUTTON, true);
-    pButton->ChangeImgColor(BUTTON_STATE_UP, RGBA(255, 255, 255, 255));
-    pButton->ChangeImgColor(BUTTON_STATE_DOWN, RGBA(255, 255, 255, 255));
+    pButton->ChangeTextColor(RGBA(240, 228, 200, 255));
 }
 
 void SEASON3B::CNewUIBankWindow::SetPos(int x, int y)
 {
     m_Pos.x = x;
     m_Pos.y = y;
-    LayoutButtons();
+    BuildLayout();
+    ApplyLayoutToButtons();
 }
 
-void SEASON3B::CNewUIBankWindow::LayoutButtons()
+void SEASON3B::CNewUIBankWindow::BuildLayout()
 {
-    m_abtn[BTN_TAB_ITEMS].ChangeButtonInfo(m_Pos.x + 8, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
-    m_abtn[BTN_TAB_VALUES].ChangeButtonInfo(m_Pos.x + 132, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
-    m_abtn[BTN_TAB_MARKET].ChangeButtonInfo(m_Pos.x + 256, m_Pos.y + TAB_ROW_TOP, TAB_WIDTH, TAB_HEIGHT);
+    Layout& layout = m_layout;
+    layout.width = BANK_WIDTH;
+    layout.height = BANK_HEIGHT;
 
-    m_abtn[BTN_PREV].ChangeButtonInfo(m_Pos.x + 20, m_Pos.y + PAGE_ROW_TOP, 44, 20);
-    m_abtn[BTN_NEXT].ChangeButtonInfo(m_Pos.x + 316, m_Pos.y + PAGE_ROW_TOP, 44, 20);
+    // What the frame keeps for itself, and what stands between two things side by side.
+    constexpr int edge = 10;
+    constexpr int gap = 6;
+    constexpr int titleHeight = 28;
+    constexpr int tabHeight = 24;
+    constexpr int buttonHeight = 26;
+    constexpr int pageButtonWidth = 44;
+    constexpr int pageButtonHeight = 20;
 
-    // Two buttons stand in the middle, three fill the row.
-    m_abtn[BTN_TAKE_ITEM].ChangeButtonInfo(m_Pos.x + 86, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_OFFER_ITEM].ChangeButtonInfo(m_Pos.x + 198, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    const int tabWidth = std::max(1, (layout.width - 2 * edge - 2 * gap) / 3);
+    for (int index = 0; index < 3; ++index)
+    {
+        layout.tab[index].left = edge + index * (tabWidth + gap);
+        layout.tab[index].top = titleHeight;
+        layout.tab[index].right = layout.tab[index].left + tabWidth;
+        layout.tab[index].bottom = titleHeight + tabHeight;
+    }
 
-    m_abtn[BTN_DEPOSIT].ChangeButtonInfo(m_Pos.x + 32, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_WITHDRAW].ChangeButtonInfo(m_Pos.x + 142, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_OFFER_VALUE].ChangeButtonInfo(m_Pos.x + 252, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    // The row of buttons stands at the bottom; everything else fills what is left above it.
+    const int buttonRowTop = layout.height - buttonHeight - 16;
+    const int buttonWidth = tabWidth;
+    for (int index = 0; index < 3; ++index)
+    {
+        layout.button[index].left = edge + index * (buttonWidth + gap);
+        layout.button[index].top = buttonRowTop;
+        layout.button[index].right = layout.button[index].left + buttonWidth;
+        layout.button[index].bottom = buttonRowTop + buttonHeight;
+    }
 
-    m_abtn[BTN_BUY].ChangeButtonInfo(m_Pos.x + 32, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_CANCEL_OFFER].ChangeButtonInfo(m_Pos.x + 142, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
-    m_abtn[BTN_MINE].ChangeButtonInfo(m_Pos.x + 252, m_Pos.y + BUTTON_ROW_TOP, BUTTON_WIDTH, BUTTON_HEIGHT);
+    layout.pageRowTop = buttonRowTop - 26;
+    layout.prevButton = {edge, layout.pageRowTop, edge + pageButtonWidth, layout.pageRowTop + pageButtonHeight};
+    layout.nextButton = {layout.width - edge - pageButtonWidth, layout.pageRowTop, layout.width - edge,
+                         layout.pageRowTop + pageButtonHeight};
+    layout.infoRowTop = layout.pageRowTop - 20;
+
+    layout.contentTop = titleHeight + tabHeight + 8;
+    layout.contentBottom = layout.infoRowTop - 4;
+
+    // The boxes: as many as the room holds, and how many pages there are follows from that.
+    layout.tileSize = 68;
+    layout.tileColumns = std::max(1, (layout.width - 2 * edge - 8) / layout.tileSize);
+    layout.tileRows = std::max(1, (layout.contentBottom - layout.contentTop) / layout.tileSize);
+    layout.itemsPerPage = layout.tileColumns * layout.tileRows;
+    layout.itemPageCount = (BANK_TOTAL_SLOTS + layout.itemsPerPage - 1) / layout.itemsPerPage;
+    layout.tileOriginX = (layout.width - layout.tileColumns * layout.tileSize) / 2;
+    layout.tileOriginY = layout.contentTop;
+
+    // The two lists share a line height; each starts under its own heading.
+    layout.listLineHeight = 22;
+    layout.moneyHeaderTop = layout.contentTop;
+    layout.moneyRowsTop = layout.moneyHeaderTop + 24;
+    layout.jewelHeaderTop = layout.moneyRowsTop + MONEY_CURRENCY_COUNT * layout.listLineHeight + 14;
+    layout.jewelRowsTop = layout.jewelHeaderTop + 24;
+
+    layout.marketHeaderTop = layout.contentTop;
+    layout.marketRowsTop = layout.marketHeaderTop + 24;
+    layout.marketRows = std::max(1, (layout.contentBottom - layout.marketRowsTop) / layout.listLineHeight);
+}
+
+void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
+{
+    const auto place = [this](BANK_BUTTON button, const RECT& rect)
+    {
+        m_abtn[button].ChangeButtonInfo(m_Pos.x + rect.left, m_Pos.y + rect.top, rect.right - rect.left,
+                                        rect.bottom - rect.top);
+    };
+
+    place(BTN_TAB_ITEMS, m_layout.tab[0]);
+    place(BTN_TAB_VALUES, m_layout.tab[1]);
+    place(BTN_TAB_MARKET, m_layout.tab[2]);
+
+    place(BTN_PREV, m_layout.prevButton);
+    place(BTN_NEXT, m_layout.nextButton);
+
+    // Two buttons stand in the middle of the row, three fill it.
+    RECT left = m_layout.button[0];
+    RECT right = m_layout.button[2];
+    const int half = (m_layout.button[1].left - m_layout.button[0].left) / 2;
+    left.left += half;
+    left.right += half;
+    right.left -= half;
+    right.right -= half;
+
+    place(BTN_TAKE_ITEM, left);
+    place(BTN_OFFER_ITEM, right);
+
+    place(BTN_DEPOSIT, m_layout.button[0]);
+    place(BTN_WITHDRAW, m_layout.button[1]);
+    place(BTN_OFFER_VALUE, m_layout.button[2]);
+
+    place(BTN_BUY, m_layout.button[0]);
+    place(BTN_CANCEL_OFFER, m_layout.button[1]);
+    place(BTN_MINE, m_layout.button[2]);
 }
 
 float SEASON3B::CNewUIBankWindow::GetLayerDepth()
@@ -559,7 +674,7 @@ bool SEASON3B::CNewUIBankWindow::UpdateMouseEvent()
 
     // The window swallows what happens over it, so a click next to a box does not walk the
     // character to the other side of the map.
-    if (SEASON3B::CheckMouseIn(m_Pos.x, m_Pos.y, static_cast<int>(BANK_WIDTH), static_cast<int>(BANK_HEIGHT)))
+    if (SEASON3B::CheckMouseIn(m_Pos.x, m_Pos.y, m_layout.width, m_layout.height))
     {
         return false;
     }
@@ -603,7 +718,7 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
         {
             if (m_page == Page::Items)
             {
-                m_itemPage = m_itemPage > 0 ? m_itemPage - 1 : ITEM_PAGE_COUNT - 1;
+                m_itemPage = m_itemPage > 0 ? m_itemPage - 1 : m_layout.itemPageCount - 1;
             }
             else
             {
@@ -619,7 +734,7 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
         {
             if (m_page == Page::Items)
             {
-                m_itemPage = (m_itemPage + 1) % ITEM_PAGE_COUNT;
+                m_itemPage = (m_itemPage + 1) % m_layout.itemPageCount;
             }
             else
             {
@@ -752,36 +867,42 @@ void SEASON3B::CNewUIBankWindow::CancelSelectedOffer()
 
 void SEASON3B::CNewUIBankWindow::GetTileRect(int slotOnPage, RECT& rect) const
 {
-    const int column = slotOnPage % TILE_COLUMNS;
-    const int row = slotOnPage / TILE_COLUMNS;
+    const int column = slotOnPage % m_layout.tileColumns;
+    const int row = slotOnPage / m_layout.tileColumns;
 
-    rect.left = m_Pos.x + TILE_ORIGIN_X + column * TILE_SIZE;
-    rect.top = m_Pos.y + CONTENT_TOP + row * TILE_SIZE;
-    rect.right = rect.left + TILE_SIZE;
-    rect.bottom = rect.top + TILE_SIZE;
+    rect.left = m_Pos.x + m_layout.tileOriginX + column * m_layout.tileSize;
+    rect.top = m_Pos.y + m_layout.tileOriginY + row * m_layout.tileSize;
+    rect.right = rect.left + m_layout.tileSize;
+    rect.bottom = rect.top + m_layout.tileSize;
 }
 
 int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
 {
     const bool isMoney = currency < MONEY_CURRENCY_COUNT;
     const int rowInGroup = isMoney ? currency : currency - MONEY_CURRENCY_COUNT;
-    return m_Pos.y + CONTENT_TOP + (isMoney ? MONEY_ROWS_TOP : JEWEL_ROWS_TOP) + rowInGroup * LIST_LINE_HEIGHT;
+    return m_Pos.y + (isMoney ? m_layout.moneyRowsTop : m_layout.jewelRowsTop) + rowInGroup * m_layout.listLineHeight;
 }
 
 int SEASON3B::CNewUIBankWindow::GetOfferRowTop(int row) const
 {
-    return m_Pos.y + CONTENT_TOP + MONEY_ROWS_TOP + row * LIST_LINE_HEIGHT;
+    return m_Pos.y + m_layout.marketRowsTop + row * m_layout.listLineHeight;
 }
 
 int SEASON3B::CNewUIBankWindow::GetTileAtCursor() const
 {
-    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
+    for (int slotOnPage = 0; slotOnPage < m_layout.itemsPerPage; ++slotOnPage)
     {
+        const int slot = m_itemPage * m_layout.itemsPerPage + slotOnPage;
+        if (slot >= BANK_TOTAL_SLOTS)
+        {
+            break;
+        }
+
         RECT rect;
         GetTileRect(slotOnPage, rect);
-        if (SEASON3B::CheckMouseIn(rect.left, rect.top, TILE_SIZE, TILE_SIZE))
+        if (SEASON3B::CheckMouseIn(rect.left, rect.top, m_layout.tileSize, m_layout.tileSize))
         {
-            return m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+            return slot;
         }
     }
 
@@ -812,8 +933,7 @@ bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
     for (int currency = 0; currency < static_cast<int>(Net::Bank::Currency::Count); ++currency)
     {
         const int top = GetCurrencyRowTop(currency);
-
-        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, static_cast<int>(BANK_WIDTH) - 32, LIST_LINE_HEIGHT))
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight))
         {
             if (SEASON3B::IsRelease(VK_LBUTTON))
             {
@@ -831,12 +951,12 @@ bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
 bool SEASON3B::CNewUIBankWindow::ProcessOfferSelection()
 {
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    const int rows = static_cast<int>(offers.size()) < MARKET_ROWS ? static_cast<int>(offers.size()) : MARKET_ROWS;
+    const int rows = std::min(static_cast<int>(offers.size()), m_layout.marketRows);
 
     for (int row = 0; row < rows; ++row)
     {
         const int top = GetOfferRowTop(row);
-        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, static_cast<int>(BANK_WIDTH) - 32, LIST_LINE_HEIGHT))
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight))
         {
             if (SEASON3B::IsRelease(VK_LBUTTON))
             {
@@ -882,73 +1002,102 @@ bool SEASON3B::CNewUIBankWindow::Render()
 
 void SEASON3B::CNewUIBankWindow::RenderFrame()
 {
-    RenderImage(IMAGE_BANK_BACK, m_Pos.x, m_Pos.y, BANK_WIDTH, BANK_HEIGHT);
-    RenderImage(IMAGE_BANK_TOP, m_Pos.x, m_Pos.y, BANK_WIDTH, 64.f);
-    RenderImage(IMAGE_BANK_LEFT, m_Pos.x, m_Pos.y + 64, 21.f, BANK_HEIGHT - 109.f);
-    RenderImage(IMAGE_BANK_RIGHT, m_Pos.x + BANK_WIDTH - 21, m_Pos.y + 64, 21.f, BANK_HEIGHT - 109.f);
-    RenderImage(IMAGE_BANK_BOTTOM, m_Pos.x, m_Pos.y + BANK_HEIGHT - 45, BANK_WIDTH, 45.f);
+    const float x = static_cast<float>(m_Pos.x);
+    const float y = static_cast<float>(m_Pos.y);
+    const float width = static_cast<float>(m_layout.width);
+    const float height = static_cast<float>(m_layout.height);
+
+    RenderColorQuadARGB(x, y, width, height, PANEL_COLOR);
+    RenderBorder(m_Pos.x, m_Pos.y, m_layout.width, m_layout.height, PANEL_EDGE_COLOR, 2);
+    RenderBorder(m_Pos.x + 2, m_Pos.y + 2, m_layout.width - 4, m_layout.height - 4, PANEL_INNER_COLOR, 1);
+    EndRenderColor();
 
     g_pRenderText->SetFont(g_hFontBold);
     g_pRenderText->SetBgColor(0);
-    g_pRenderText->SetTextColor(230, 230, 230, 255);
-    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + 10, I18N::Game::Bank, static_cast<int>(BANK_WIDTH), 0,
-                              RT3_SORT_CENTER);
+    g_pRenderText->SetTextColor(240, 220, 164, 255);
+    g_pRenderText->RenderText(m_Pos.x, m_Pos.y + 8, I18N::Game::Bank, m_layout.width, 0, RT3_SORT_CENTER);
+}
+
+void SEASON3B::CNewUIBankWindow::RenderButton(CNewUIButton& button, bool highlighted)
+{
+    const POINT& pos = button.GetPos();
+    const POINT& size = button.GetSize();
+    const BUTTON_STATE state = button.GetBTState();
+
+    unsigned int plate = BUTTON_UP_COLOR;
+    if (state == BUTTON_STATE_DOWN)
+    {
+        plate = BUTTON_DOWN_COLOR;
+    }
+    else if (state == BUTTON_STATE_OVER)
+    {
+        plate = BUTTON_OVER_COLOR;
+    }
+
+    RenderColorQuadARGB(static_cast<float>(pos.x), static_cast<float>(pos.y), static_cast<float>(size.x),
+                        static_cast<float>(size.y), plate);
+    RenderBorder(pos.x, pos.y, size.x, size.y, highlighted ? BUTTON_EDGE_ON_COLOR : BUTTON_EDGE_COLOR, 1);
+    EndRenderColor();
+
+    button.ChangeTextColor(highlighted ? RGBA(255, 210, 76, 255) : RGBA(232, 220, 192, 255));
+    button.Render();
 }
 
 void SEASON3B::CNewUIBankWindow::RenderTabs()
 {
-    // The tab which is shown is the one which is not drawn as a button the player can press.
-    m_abtn[BTN_TAB_ITEMS].ChangeTextColor(m_page == Page::Items ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
-    m_abtn[BTN_TAB_VALUES].ChangeTextColor(m_page == Page::Values ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
-    m_abtn[BTN_TAB_MARKET].ChangeTextColor(m_page == Page::Market ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
-
-    m_abtn[BTN_TAB_ITEMS].Render();
-    m_abtn[BTN_TAB_VALUES].Render();
-    m_abtn[BTN_TAB_MARKET].Render();
+    RenderButton(m_abtn[BTN_TAB_ITEMS], m_page == Page::Items);
+    RenderButton(m_abtn[BTN_TAB_VALUES], m_page == Page::Values);
+    RenderButton(m_abtn[BTN_TAB_MARKET], m_page == Page::Market);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderItemsPage()
 {
-    const int hovered = GetTileAtCursor();
+    const int gridX = m_Pos.x + m_layout.tileOriginX;
+    const int gridY = m_Pos.y + m_layout.tileOriginY;
+    const int gridWidth = m_layout.tileColumns * m_layout.tileSize;
+    const int gridHeight = m_layout.tileRows * m_layout.tileSize;
 
-    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
+    RenderColorQuadARGB(static_cast<float>(gridX), static_cast<float>(gridY), static_cast<float>(gridWidth),
+                        static_cast<float>(gridHeight), GRID_BACK_COLOR);
+
+    const int hovered = GetTileAtCursor();
+    for (int slotOnPage = 0; slotOnPage < m_layout.itemsPerPage; ++slotOnPage)
     {
-        const int slot = m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+        const int slot = m_itemPage * m_layout.itemsPerPage + slotOnPage;
         RECT rect;
         GetTileRect(slotOnPage, rect);
 
-        unsigned int color = EMPTY_BOX_COLOR;
-        if (slot == m_selectedSlot && m_boxes[slot] != nullptr)
+        unsigned int fill = TILE_COLOR;
+        if (slot >= BANK_TOTAL_SLOTS)
         {
-            color = PICKED_COLOR;
+            // The last page can hold more boxes than the bank has; those stand empty and dark.
+            fill = GRID_BACK_COLOR;
+        }
+        else if (slot == m_selectedSlot && m_boxes[slot] != nullptr)
+        {
+            fill = PICKED_FILL_COLOR;
         }
         else if (slot == hovered)
         {
-            color = HOVERED_COLOR;
+            fill = HOVERED_FILL_COLOR;
         }
 
         RenderColorQuadARGB(static_cast<float>(rect.left + 1), static_cast<float>(rect.top + 1),
-                            static_cast<float>(TILE_SIZE - 2), static_cast<float>(TILE_SIZE - 2), color);
-        EndRenderColor();
+                            static_cast<float>(m_layout.tileSize - 2), static_cast<float>(m_layout.tileSize - 2), fill);
+        RenderBorder(rect.left, rect.top, m_layout.tileSize, m_layout.tileSize, TILE_LINE_COLOR, 1);
+
+        if (slot == m_selectedSlot && slot < BANK_TOTAL_SLOTS && m_boxes[slot] != nullptr)
+        {
+            RenderBorder(rect.left, rect.top, m_layout.tileSize, m_layout.tileSize, PICKED_EDGE_COLOR, 2);
+        }
     }
+
+    RenderBorder(gridX - 4, gridY - 4, gridWidth + 8, gridHeight + 8, GRID_FRAME_COLOR, 2);
+    EndRenderColor();
 
     wchar_t szText[256] = {0};
     g_pRenderText->SetFont(g_hFont);
     g_pRenderText->SetBgColor(0);
-
-    // What is picked, and what a price would be asked in, because that is what the market needs.
-    g_pRenderText->SetTextColor(255, 210, 80, 255);
-    if (m_selectedSlot >= 0 && m_boxes[m_selectedSlot] != nullptr)
-    {
-        GetItemName(m_boxes[m_selectedSlot]->Type, m_boxes[m_selectedSlot]->Level, szText);
-    }
-    else
-    {
-        mu_swprintf(szText, L"%ls", GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency)));
-    }
-
-    g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + INFO_ROW_TOP, szText, static_cast<int>(BANK_WIDTH) - 40, 0,
-                              RT3_SORT_CENTER);
 
     int used = 0;
     for (int slot = 0; slot < BANK_TOTAL_SLOTS; ++slot)
@@ -959,34 +1108,55 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
         }
     }
 
-    g_pRenderText->SetTextColor(200, 200, 200, 255);
+    g_pRenderText->SetTextColor(159, 167, 155, 255);
     mu_swprintf(szText, I18N::Game::BankBoxCount, used, BANK_TOTAL_SLOTS);
-    g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + INFO_ROW_TOP - 18, szText, 140, 0);
+    g_pRenderText->RenderText(m_Pos.x + 16, m_Pos.y + m_layout.infoRowTop, szText, 110, 0);
 
-    mu_swprintf(szText, I18N::Game::BankPageOf, m_itemPage + 1, ITEM_PAGE_COUNT);
-    g_pRenderText->RenderText(m_Pos.x + 70, m_Pos.y + PAGE_ROW_TOP + 3, szText, 240, 0, RT3_SORT_CENTER);
+    // What is picked, or which currency a price would be asked in when nothing is.
+    g_pRenderText->SetTextColor(255, 210, 76, 255);
+    if (m_selectedSlot >= 0 && m_boxes[m_selectedSlot] != nullptr)
+    {
+        GetItemName(m_boxes[m_selectedSlot]->Type, m_boxes[m_selectedSlot]->Level, szText);
+    }
+    else
+    {
+        mu_swprintf(szText, L"%ls", GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency)));
+    }
 
-    m_abtn[BTN_PREV].Render();
-    m_abtn[BTN_NEXT].Render();
-    m_abtn[BTN_TAKE_ITEM].Render();
-    m_abtn[BTN_OFFER_ITEM].Render();
+    g_pRenderText->RenderText(m_Pos.x + 130, m_Pos.y + m_layout.infoRowTop, szText, m_layout.width - 146, 0,
+                              RT3_SORT_CENTER);
+
+    g_pRenderText->SetTextColor(200, 194, 180, 255);
+    mu_swprintf(szText, I18N::Game::BankPageOf, m_itemPage + 1, m_layout.itemPageCount);
+    g_pRenderText->RenderText(m_Pos.x + m_layout.prevButton.right, m_Pos.y + m_layout.pageRowTop + 3, szText,
+                              m_layout.nextButton.left - m_layout.prevButton.right, 0, RT3_SORT_CENTER);
+
+    RenderButton(m_abtn[BTN_PREV], false);
+    RenderButton(m_abtn[BTN_NEXT], false);
+    RenderButton(m_abtn[BTN_TAKE_ITEM], false);
+    RenderButton(m_abtn[BTN_OFFER_ITEM], false);
 
     RenderHoveredItemInfo();
 }
 
 void SEASON3B::CNewUIBankWindow::RenderValuesPage()
 {
-    wchar_t szText[256] = {0};
     wchar_t szAmount[64] = {0};
 
     g_pRenderText->SetBgColor(0);
 
     for (int group = 0; group < 2; ++group)
     {
+        const int headerTop = group == 0 ? m_layout.moneyHeaderTop : m_layout.jewelHeaderTop;
+
         g_pRenderText->SetFont(g_hFontBold);
-        g_pRenderText->SetTextColor(160, 200, 255, 255);
-        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + CONTENT_TOP + (group == 0 ? 0 : JEWEL_HEADER_TOP),
+        g_pRenderText->SetTextColor(143, 184, 232, 255);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + headerTop,
                                   group == 0 ? I18N::Game::BankMoneyGroup : I18N::Game::BankJewelGroup, 240, 0);
+
+        RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(m_Pos.y + headerTop + 16),
+                            static_cast<float>(m_layout.width - 32), 1.f, HEADING_LINE_COLOR);
+        EndRenderColor();
 
         const int first = group == 0 ? 0 : MONEY_CURRENCY_COUNT;
         const int last = group == 0 ? MONEY_CURRENCY_COUNT : static_cast<int>(Net::Bank::Currency::Count);
@@ -998,29 +1168,30 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
 
             if (currency == m_selectedCurrency)
             {
-                RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top), BANK_WIDTH - 32.f,
-                                    static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
+                RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top),
+                                    static_cast<float>(m_layout.width - 32),
+                                    static_cast<float>(m_layout.listLineHeight), PICKED_FILL_COLOR);
+                RenderBorder(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight, PICKED_EDGE_COLOR, 1);
                 EndRenderColor();
-                g_pRenderText->SetTextColor(255, 230, 150, 255);
+                g_pRenderText->SetTextColor(255, 233, 168, 255);
             }
             else
             {
-                g_pRenderText->SetTextColor(220, 220, 220, 255);
+                g_pRenderText->SetTextColor(220, 214, 200, 255);
             }
 
-            g_pRenderText->RenderText(m_Pos.x + 26, top + 2,
+            g_pRenderText->RenderText(m_Pos.x + 26, top + 4,
                                       GetCurrencyName(static_cast<Net::Bank::Currency>(currency)), 180, 0);
 
             FormatAmount(Net::Bank::Store::Instance().GetBalance(static_cast<Net::Bank::Currency>(currency)), szAmount,
                          std::size(szAmount));
-            mu_swprintf(szText, L"%ls", szAmount);
-            g_pRenderText->RenderText(m_Pos.x + 206, top + 2, szText, 148, 0, RT3_SORT_RIGHT);
+            g_pRenderText->RenderText(m_Pos.x + 206, top + 4, szAmount, m_layout.width - 232, 0, RT3_SORT_RIGHT);
         }
     }
 
-    m_abtn[BTN_DEPOSIT].Render();
-    m_abtn[BTN_WITHDRAW].Render();
-    m_abtn[BTN_OFFER_VALUE].Render();
+    RenderButton(m_abtn[BTN_DEPOSIT], false);
+    RenderButton(m_abtn[BTN_WITHDRAW], false);
+    RenderButton(m_abtn[BTN_OFFER_VALUE], false);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderMarketPage()
@@ -1028,13 +1199,21 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     wchar_t szText[256] = {0};
     wchar_t szAmount[64] = {0};
 
+    const int sellerColumn = m_Pos.x + 26;
+    const int nameColumn = m_Pos.x + 116;
+    const int priceColumn = m_Pos.x + m_layout.width - 26;
+
     g_pRenderText->SetBgColor(0);
     g_pRenderText->SetFont(g_hFontBold);
-    g_pRenderText->SetTextColor(160, 200, 255, 255);
-    g_pRenderText->RenderText(m_Pos.x + 26, m_Pos.y + CONTENT_TOP, I18N::Game::BankSellerColumn, 90, 0);
-    g_pRenderText->RenderText(m_Pos.x + 116, m_Pos.y + CONTENT_TOP, I18N::Game::BankItemColumn, 150, 0);
-    g_pRenderText->RenderText(m_Pos.x + 236, m_Pos.y + CONTENT_TOP, I18N::Game::BankPriceColumn, 118, 0,
-                              RT3_SORT_RIGHT);
+    g_pRenderText->SetTextColor(143, 184, 232, 255);
+    g_pRenderText->RenderText(sellerColumn, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankSellerColumn, 90, 0);
+    g_pRenderText->RenderText(nameColumn, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankItemColumn, 140, 0);
+    g_pRenderText->RenderText(priceColumn - 118, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankPriceColumn, 118,
+                              0, RT3_SORT_RIGHT);
+
+    RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(m_Pos.y + m_layout.marketHeaderTop + 16),
+                        static_cast<float>(m_layout.width - 32), 1.f, HEADING_LINE_COLOR);
+    EndRenderColor();
 
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
     g_pRenderText->SetFont(g_hFont);
@@ -1042,11 +1221,11 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     if (offers.empty())
     {
         g_pRenderText->SetTextColor(180, 180, 180, 255);
-        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + CONTENT_TOP + 80, I18N::Game::BankHasNoOffers,
-                                  static_cast<int>(BANK_WIDTH) - 40, 0, RT3_SORT_CENTER);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.marketRowsTop + 60, I18N::Game::BankHasNoOffers,
+                                  m_layout.width - 40, 0, RT3_SORT_CENTER);
     }
 
-    const int rows = static_cast<int>(offers.size()) < MARKET_ROWS ? static_cast<int>(offers.size()) : MARKET_ROWS;
+    const int rows = std::min(static_cast<int>(offers.size()), m_layout.marketRows);
     for (int row = 0; row < rows; ++row)
     {
         const Net::Bank::Offer& offer = offers[row];
@@ -1054,36 +1233,37 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
 
         if (row == m_selectedOffer)
         {
-            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top), BANK_WIDTH - 32.f,
-                                static_cast<float>(LIST_LINE_HEIGHT), PICKED_COLOR);
+            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top),
+                                static_cast<float>(m_layout.width - 32), static_cast<float>(m_layout.listLineHeight),
+                                PICKED_FILL_COLOR);
+            RenderBorder(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight, PICKED_EDGE_COLOR, 1);
             EndRenderColor();
-            g_pRenderText->SetTextColor(255, 230, 150, 255);
+            g_pRenderText->SetTextColor(255, 233, 168, 255);
         }
         else
         {
-            g_pRenderText->SetTextColor(220, 220, 220, 255);
+            g_pRenderText->SetTextColor(220, 214, 200, 255);
         }
 
-        g_pRenderText->RenderText(m_Pos.x + 26, top + 2, offer.SellerName.c_str(), 90, 0);
-        g_pRenderText->RenderText(m_Pos.x + 116, top + 2, offer.OfferName.c_str(), 150, 0);
+        g_pRenderText->RenderText(sellerColumn, top + 4, offer.SellerName.c_str(), 90, 0);
+        g_pRenderText->RenderText(nameColumn, top + 4, offer.OfferName.c_str(), 140, 0);
 
         FormatAmount(offer.PriceAmount, szAmount, std::size(szAmount));
         mu_swprintf(szText, L"%ls %ls", szAmount, GetCurrencyName(offer.PriceCurrency));
-        g_pRenderText->RenderText(m_Pos.x + 236, top + 2, szText, 118, 0, RT3_SORT_RIGHT);
+        g_pRenderText->RenderText(priceColumn - 118, top + 4, szText, 118, 0, RT3_SORT_RIGHT);
     }
 
-    g_pRenderText->SetTextColor(200, 200, 200, 255);
+    g_pRenderText->SetTextColor(200, 194, 180, 255);
     mu_swprintf(szText, I18N::Game::BankPageOf, Net::Bank::Store::Instance().GetOfferPage() + 1,
                 Net::Bank::Store::Instance().GetOfferPageCount());
-    g_pRenderText->RenderText(m_Pos.x + 70, m_Pos.y + PAGE_ROW_TOP + 3, szText, 240, 0, RT3_SORT_CENTER);
+    g_pRenderText->RenderText(m_Pos.x + m_layout.prevButton.right, m_Pos.y + m_layout.pageRowTop + 3, szText,
+                              m_layout.nextButton.left - m_layout.prevButton.right, 0, RT3_SORT_CENTER);
 
-    m_abtn[BTN_MINE].ChangeTextColor(m_ownOffersOnly ? RGBA(255, 210, 80, 255) : RGBA(220, 220, 220, 255));
-
-    m_abtn[BTN_PREV].Render();
-    m_abtn[BTN_NEXT].Render();
-    m_abtn[BTN_BUY].Render();
-    m_abtn[BTN_CANCEL_OFFER].Render();
-    m_abtn[BTN_MINE].Render();
+    RenderButton(m_abtn[BTN_PREV], false);
+    RenderButton(m_abtn[BTN_NEXT], false);
+    RenderButton(m_abtn[BTN_BUY], false);
+    RenderButton(m_abtn[BTN_CANCEL_OFFER], false);
+    RenderButton(m_abtn[BTN_MINE], m_ownOffersOnly);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderHoveredItemInfo()
@@ -1117,8 +1297,8 @@ void SEASON3B::CNewUIBankWindow::UI2DEffectCallback(LPVOID pClass, DWORD dwParam
     }
 
     RECT rect;
-    pWindow->GetTileRect(slot - pWindow->m_itemPage * ITEMS_PER_PAGE, rect);
-    RenderItemInfo(rect.left + TILE_SIZE / 2, rect.top, pWindow->m_boxes[slot], false);
+    pWindow->GetTileRect(slot - pWindow->m_itemPage * pWindow->m_layout.itemsPerPage, rect);
+    RenderItemInfo(rect.left + pWindow->m_layout.tileSize / 2, rect.top, pWindow->m_boxes[slot], false);
 }
 
 void SEASON3B::CNewUIBankWindow::Render3D()
@@ -1128,9 +1308,14 @@ void SEASON3B::CNewUIBankWindow::Render3D()
         return;
     }
 
-    for (int slotOnPage = 0; slotOnPage < ITEMS_PER_PAGE; ++slotOnPage)
+    for (int slotOnPage = 0; slotOnPage < m_layout.itemsPerPage; ++slotOnPage)
     {
-        const int slot = m_itemPage * ITEMS_PER_PAGE + slotOnPage;
+        const int slot = m_itemPage * m_layout.itemsPerPage + slotOnPage;
+        if (slot >= BANK_TOTAL_SLOTS)
+        {
+            break;
+        }
+
         const ITEM* pItem = m_boxes[slot];
         if (pItem == nullptr)
         {
@@ -1145,20 +1330,15 @@ void SEASON3B::CNewUIBankWindow::Render3D()
         const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[pItem->Type];
         const int columns = pItemAttr->Width > 0 ? pItemAttr->Width : 1;
         const int rows = pItemAttr->Height > 0 ? pItemAttr->Height : 1;
-        const float scale = static_cast<float>(TILE_SIZE - 8) / static_cast<float>(columns > rows ? columns : rows);
+        const float scale = static_cast<float>(m_layout.tileSize - 10) / static_cast<float>(std::max(columns, rows));
         const float width = columns * scale;
         const float height = rows * scale;
-        const float x = rect.left + (TILE_SIZE - width) / 2.f;
-        const float y = rect.top + (TILE_SIZE - height) / 2.f;
+        const float x = rect.left + (m_layout.tileSize - width) / 2.f;
+        const float y = rect.top + (m_layout.tileSize - height) / 2.f;
 
         RenderItem3D(x, y, width, height, pItem->Type, pItem->Level, pItem->ExcellentFlags, pItem->AncientDiscriminator,
                      false);
     }
-}
-
-int SEASON3B::CNewUIBankWindow::GetMoneyCurrencyCount()
-{
-    return MONEY_CURRENCY_COUNT;
 }
 
 const wchar_t* SEASON3B::CNewUIBankWindow::GetCurrencyName(Net::Bank::Currency currency)

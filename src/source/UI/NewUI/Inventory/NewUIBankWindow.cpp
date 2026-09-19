@@ -592,9 +592,33 @@ void SEASON3B::CNewUIBankWindow::OpenPendingInput()
     }
 }
 
-void SEASON3B::CNewUIBankWindow::ShowRefusedRequest()
+void SEASON3B::CNewUIBankWindow::ShowRefusedRequest(Net::Bank::ResultCode result)
 {
-    g_pChatListBox->AddText(L"", I18N::Game::BankRefusedTheRequest, SEASON3B::TYPE_ERROR_MESSAGE);
+    // A player who is told only that the bank refused him cannot tell a full bank from a price he
+    // cannot afford, so the answers worth acting on say what they mean.
+    const wchar_t* message = I18N::Game::BankRefusedTheRequest;
+    switch (result)
+    {
+    case Net::Bank::ResultCode::BankStorageFull:
+        message = I18N::Game::BankIsFull;
+        break;
+    case Net::Bank::ResultCode::InventoryFull:
+        message = I18N::Game::InventorySpaceIsInsufficient;
+        break;
+    case Net::Bank::ResultCode::NotEnoughValue:
+        message = I18N::Game::BankNotEnoughValue;
+        break;
+    case Net::Bank::ResultCode::OfferGone:
+        message = I18N::Game::BankOfferIsGone;
+        break;
+    case Net::Bank::ResultCode::TooManyOffers:
+        message = I18N::Game::BankTooManyOffers;
+        break;
+    default:
+        break;
+    }
+
+    g_pChatListBox->AddText(L"", message, SEASON3B::TYPE_ERROR_MESSAGE);
 }
 
 bool SEASON3B::CNewUIBankWindow::Update()
@@ -610,7 +634,7 @@ bool SEASON3B::CNewUIBankWindow::Update()
     {
         if (result != Net::Bank::ResultCode::Success)
         {
-            ShowRefusedRequest();
+            ShowRefusedRequest(result);
         }
         else if (operation == Net::Bank::Operation::MarketRegister || operation == Net::Bank::Operation::MarketBuy ||
                  operation == Net::Bank::Operation::MarketCancel)

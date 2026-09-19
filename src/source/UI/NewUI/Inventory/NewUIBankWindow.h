@@ -210,7 +210,7 @@ private:
     void ApplyLayoutToButtons();
 
     void InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot);
-    void ShowRefusedRequest();
+    void ShowRefusedRequest(Net::Bank::ResultCode result);
     void OpenPendingInput();
 
     void RenderFrame();

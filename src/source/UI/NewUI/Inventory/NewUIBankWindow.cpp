@@ -353,8 +353,6 @@ void SEASON3B::CNewUIBankWindow::ProcessToReceiveBankItems(int nIndex, std::span
 {
     InsertItem(nIndex, pbyItemPacket);
 
-    CNewUIInventoryCtrl::DeletePickedItem();
-
     // The server confirmed the move, so the item may leave the box of the inventory it came from.
     if (m_depositSourceSlot >= MAX_EQUIPMENT_INDEX && m_depositSourceSlot < MAX_MY_INVENTORY_INDEX)
     {
@@ -731,6 +729,11 @@ bool SEASON3B::CNewUIBankWindow::UpdateMouseEvent()
     // character to the other side of the map.
     if (SEASON3B::CheckMouseIn(m_Pos.x, m_Pos.y, m_layout.width, m_layout.height))
     {
+        if (g_pPickedItem && g_pPickedItem->GetItem() && SEASON3B::IsRelease(VK_LBUTTON))
+        {
+            CNewUIInventoryCtrl::BackupPickedItem();
+        }
+
         return false;
     }
 
@@ -1004,22 +1007,12 @@ bool SEASON3B::CNewUIBankWindow::ProcessTileSelection()
 
     if (g_pPickedItem && g_pPickedItem->GetItem())
     {
+        // The bank is not used by carrying items into it - a right click in the inventory is what
+        // puts one in. An item which is already on the cursor goes back where it came from, so it
+        // is never left with nowhere to go.
         if (SEASON3B::IsRelease(VK_LBUTTON))
         {
-            ITEM* pPicked = g_pPickedItem->GetItem();
-            const int sourceIndex = g_pPickedItem->GetSourceLinealPos();
-            if (m_boxes[slot] == nullptr && sourceIndex >= 0)
-            {
-                // The item left its own storage when it was picked up, so nothing of it has to be
-                // removed here once the server answers.
-                SendRequestEquipmentItem(g_pPickedItem->GetSourceStorageType(), sourceIndex, pPicked,
-                                         STORAGE_TYPE::BANK, slot);
-                PlayBuffer(SOUND_GET_ITEM01);
-            }
-            else
-            {
-                CNewUIInventoryCtrl::BackupPickedItem();
-            }
+            CNewUIInventoryCtrl::BackupPickedItem();
         }
 
         return true;

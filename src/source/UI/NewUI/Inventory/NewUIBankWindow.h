@@ -311,6 +311,14 @@ private:
     /// <summary>Whether only the offers of this account are listed on the market tab.</summary>
     bool m_ownOffersOnly;
 
+    /// <summary>
+    /// The offer a request was sent about, while no answer has arrived. Clicking five times in a
+    /// second used to send five requests for the same offer, and the server had to sort out what
+    /// that meant; now the four which follow are not sent at all.
+    /// </summary>
+    std::array<BYTE, Net::Bank::ListingIdLength> m_pendingListingId{};
+    bool m_waitingForMarketAnswer;
+
     PendingInput m_pendingInput;
 
     /// <summary>Whether the offer being made carries the picked item or an amount of a currency.</summary>

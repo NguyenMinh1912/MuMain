@@ -101,8 +101,8 @@ void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
     : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_layout{}, m_page(Page::Items), m_itemPage(0),
       m_selectedCurrency(0), m_priceCurrency(0), m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1),
-      m_takeSourceSlot(-1), m_ownOffersOnly(false), m_pendingInput(PendingInput::None), m_offerCarriesItem(true),
-      m_offerAmount(0)
+      m_takeSourceSlot(-1), m_ownOffersOnly(false), m_waitingForMarketAnswer(false), m_pendingInput(PendingInput::None),
+      m_offerCarriesItem(true), m_offerAmount(0)
 {
     m_Pos.x = 0;
     m_Pos.y = 0;
@@ -312,6 +312,7 @@ void SEASON3B::CNewUIBankWindow::OpeningProcess()
     m_selectedOffer = -1;
     m_depositSourceSlot = -1;
     m_takeSourceSlot = -1;
+    m_waitingForMarketAnswer = false;
     m_pendingInput = PendingInput::None;
 
     SocketClient->ToGameServer()->SendBankDialog(true);
@@ -655,6 +656,11 @@ bool SEASON3B::CNewUIBankWindow::Update()
     Net::Bank::ResultCode result = Net::Bank::ResultCode::Success;
     if (Net::Bank::Store::Instance().TakeNewResult(operation, result))
     {
+        if (operation == Net::Bank::Operation::MarketBuy || operation == Net::Bank::Operation::MarketCancel)
+        {
+            m_waitingForMarketAnswer = false;
+        }
+
         if (result != Net::Bank::ResultCode::Success)
         {
             ShowRefusedRequest(result);
@@ -921,23 +927,27 @@ bool SEASON3B::CNewUIBankWindow::ProcessMarketPageButtons()
 void SEASON3B::CNewUIBankWindow::BuySelectedOffer()
 {
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()))
+    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()) || m_waitingForMarketAnswer)
     {
         return;
     }
 
-    SocketClient->ToGameServer()->SendMarketBuy(offers[m_selectedOffer].ListingId.data());
+    m_pendingListingId = offers[m_selectedOffer].ListingId;
+    m_waitingForMarketAnswer = true;
+    SocketClient->ToGameServer()->SendMarketBuy(m_pendingListingId.data());
 }
 
 void SEASON3B::CNewUIBankWindow::CancelSelectedOffer()
 {
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()))
+    if (m_selectedOffer < 0 || m_selectedOffer >= static_cast<int>(offers.size()) || m_waitingForMarketAnswer)
     {
         return;
     }
 
-    SocketClient->ToGameServer()->SendMarketCancel(offers[m_selectedOffer].ListingId.data());
+    m_pendingListingId = offers[m_selectedOffer].ListingId;
+    m_waitingForMarketAnswer = true;
+    SocketClient->ToGameServer()->SendMarketCancel(m_pendingListingId.data());
 }
 
 void SEASON3B::CNewUIBankWindow::GetTileRect(int slotOnPage, RECT& rect) const

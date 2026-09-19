@@ -13045,4 +13045,25 @@
   <data name="Bank refused the request" xml:space="preserve">
     <value>The bank refused the request</value>
   </data>
+  <data name="Bank enter the price" xml:space="preserve">
+    <value>Enter the price</value>
+  </data>
+  <data name="Bank enter the receiver" xml:space="preserve">
+    <value>Enter the receiver</value>
+  </data>
+  <data name="Bank enter the amount" xml:space="preserve">
+    <value>Enter the amount</value>
+  </data>
+  <data name="Bank offer" xml:space="preserve">
+    <value>Offer</value>
+  </data>
+  <data name="Bank send item" xml:space="preserve">
+    <value>Send item</value>
+  </data>
+  <data name="Bank send value" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="Bank select an item first" xml:space="preserve">
+    <value>Right click an item in the bank first</value>
+  </data>
 </root>

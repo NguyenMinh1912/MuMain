@@ -11,6 +11,8 @@
 #include "UI/NewUI/NewUIBase.h"
 #include "UI/NewUI/Widgets/NewUIButton.h"
 
+#include <string>
+
 namespace SEASON3B
 {
 /// <summary>
@@ -74,6 +76,28 @@ public:
     /// <summary>Tells the server that the dialog was closed, so the player leaves the npc.</summary>
     void ClosingProcess();
 
+    /// <summary>
+    /// Offers the picked item at the price the player typed.
+    /// </summary>
+    /// <param name="price">The price, in the currency which is selected.</param>
+    void FinishOffer(int64_t price);
+
+    /// <summary>
+    /// Takes the account a transfer is addressed to, and either sends the item at once or asks
+    /// how much of the selected currency should go.
+    /// </summary>
+    /// <param name="receiverName">The character or login name the player typed.</param>
+    void SetTransferReceiver(const wchar_t* receiverName);
+
+    /// <summary>
+    /// Sends the transfer of the selected currency with the amount the player typed.
+    /// </summary>
+    /// <param name="amount">The amount the receiver gets.</param>
+    void FinishValueTransfer(int64_t amount);
+
+    /// <summary>Forgets a half finished dialog, because the player cancelled it.</summary>
+    void CancelPendingInput();
+
 private:
     /// <summary>Which half of the bank the window is showing.</summary>
     enum class Page
@@ -82,21 +106,40 @@ private:
         Market,
     };
 
+    /// <summary>
+    /// Which dialog the window wants to open on its next frame.
+    /// </summary>
+    /// <remarks>
+    /// The dialogs are opened from <see cref="Update"/> and never from the callback of another
+    /// dialog, so a message box is never created while the one which asked for it is being
+    /// destroyed.
+    /// </remarks>
+    enum class PendingInput
+    {
+        None,
+        Price,
+        Receiver,
+        Amount,
+    };
+
     enum BANK_BUTTON
     {
         BTN_PAGE = 0,
-        BTN_DEPOSIT,
-        BTN_WITHDRAW,
         BTN_PREV,
         BTN_NEXT,
+        BTN_DEPOSIT,
+        BTN_WITHDRAW,
+        BTN_OFFER,
+        BTN_SEND_ITEM,
+        BTN_SEND_VALUE,
         MAX_BTN
     };
 
     static constexpr float BANK_WIDTH = 190.0f;
 
-    // Taller than the vault, because the balances and the buttons live below the item boxes
-    // instead of replacing a row of them.
-    static constexpr float BANK_HEIGHT = 520.0f;
+    // Taller than the vault, because the balances and three rows of buttons live below the item
+    // boxes instead of replacing a row of them.
+    static constexpr float BANK_HEIGHT = 560.0f;
 
     /// <summary>The boxes of the bank, which has to match the rows the server configured.</summary>
     static constexpr int BANK_COLUMNS = 8;
@@ -107,13 +150,18 @@ private:
 
     void InitButton(CNewUIButton* pButton, int x, int y, const wchar_t* caption);
     void ShowRefusedRequest();
+    void OpenPendingInput();
     void RenderFrame();
     void RenderStoragePage();
     void RenderMarketPage();
     bool ProcessButtons();
+    bool ProcessStorageButtons();
+    bool ProcessMarketButtons();
     void ProcessSelection();
     void MoveSelectedCurrency(bool deposit);
     void BuySelectedOffer();
+    void CancelSelectedOffer();
+    bool RequireSelectedItem();
 
     /// <summary>Gets the name of a currency as it is listed.</summary>
     static const wchar_t* GetCurrencyName(Net::Bank::Currency currency);
@@ -127,5 +175,15 @@ private:
     Page m_page;
     int m_selectedCurrency;
     int m_selectedOffer;
+
+    /// <summary>The box the player picked with the right mouse button; -1 when none.</summary>
+    int m_selectedSlot;
+
+    PendingInput m_pendingInput;
+
+    /// <summary>Whether the transfer being asked about carries the picked item or a currency.</summary>
+    bool m_transferCarriesItem;
+
+    std::wstring m_transferReceiver;
 };
 } // namespace SEASON3B

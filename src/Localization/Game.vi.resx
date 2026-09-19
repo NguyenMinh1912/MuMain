@@ -13053,4 +13053,25 @@
   <data name="Bank refused the request" xml:space="preserve">
     <value>Ngân hàng đã từ chối yêu cầu</value>
   </data>
+  <data name="Bank enter the price" xml:space="preserve">
+    <value>Nhập giá bán</value>
+  </data>
+  <data name="Bank enter the receiver" xml:space="preserve">
+    <value>Nhập tên người nhận</value>
+  </data>
+  <data name="Bank enter the amount" xml:space="preserve">
+    <value>Nhập số lượng</value>
+  </data>
+  <data name="Bank offer" xml:space="preserve">
+    <value>Rao bán</value>
+  </data>
+  <data name="Bank send item" xml:space="preserve">
+    <value>Gửi đồ</value>
+  </data>
+  <data name="Bank send value" xml:space="preserve">
+    <value>Gửi tiền</value>
+  </data>
+  <data name="Bank select an item first" xml:space="preserve">
+    <value>Hãy bấm chuột phải vào một món đồ trong ngân hàng trước</value>
+  </data>
 </root>

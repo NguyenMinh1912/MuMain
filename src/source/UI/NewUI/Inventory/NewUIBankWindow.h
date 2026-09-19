@@ -162,12 +162,14 @@ private:
         BTN_BUY,
         BTN_CANCEL_OFFER,
         BTN_MINE,
+        BTN_PRICE_PREV,
+        BTN_PRICE_NEXT,
         MAX_BTN
     };
 
     /// <summary>The size of the window. Everything else follows from it.</summary>
     static constexpr int BANK_WIDTH = 380;
-    static constexpr int BANK_HEIGHT = 424;
+    static constexpr int BANK_HEIGHT = 448;
 
     /// <summary>
     /// Where every part of the window stands, in window coordinates.
@@ -198,8 +200,11 @@ private:
 
         int infoRowTop;
         int pageRowTop;
+        int priceRowTop;
         RECT prevButton;
         RECT nextButton;
+        RECT pricePrevButton;
+        RECT priceNextButton;
         RECT button[3];
 
         int listLineHeight;
@@ -226,6 +231,9 @@ private:
     void RenderMarketPage();
     void RenderHoveredItemInfo();
 
+    /// <summary>Draws the row which says, and lets the player change, what a price is named in.</summary>
+    void RenderPriceCurrencyRow();
+
     /// <summary>Draws the plate of a button and then lets the button draw its own caption.</summary>
     void RenderButton(CNewUIButton& button, bool highlighted);
 
@@ -234,6 +242,7 @@ private:
     bool ProcessItemsPageButtons();
     bool ProcessValuesPageButtons();
     bool ProcessMarketPageButtons();
+    bool ProcessPriceCurrencyButtons();
     bool ProcessTileSelection();
     bool ProcessValueSelection();
     bool ProcessOfferSelection();
@@ -278,6 +287,13 @@ private:
     Page m_page;
     int m_itemPage;
     int m_selectedCurrency;
+
+    /// <summary>
+    /// The currency a price is named in. It is the player's own choice and has nothing to do with
+    /// the row he picked on the tab of the values, which is what he moves in and out of the bank.
+    /// </summary>
+    int m_priceCurrency;
+
     int m_selectedOffer;
 
     /// <summary>What the server sent for every box, by box number.</summary>

@@ -13137,4 +13137,10 @@
   <data name="Bank too many offers" xml:space="preserve">
     <value>Bạn đã rao bán tối đa số món cho phép</value>
   </data>
+  <data name="Bank price in" xml:space="preserve">
+    <value>Giá bằng</value>
+  </data>
+  <data name="Bank price currency must differ" xml:space="preserve">
+    <value>Hãy chọn loại tiền khác với thứ đang rao bán</value>
+  </data>
 </root>

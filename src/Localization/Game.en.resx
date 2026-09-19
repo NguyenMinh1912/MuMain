@@ -13129,4 +13129,10 @@
   <data name="Bank too many offers" xml:space="preserve">
     <value>You already have as many offers as you may</value>
   </data>
+  <data name="Bank price in" xml:space="preserve">
+    <value>Price in</value>
+  </data>
+  <data name="Bank price currency must differ" xml:space="preserve">
+    <value>Ask for something other than what you are offering</value>
+  </data>
 </root>

@@ -100,8 +100,9 @@ void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 
 SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
     : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_layout{}, m_page(Page::Items), m_itemPage(0),
-      m_selectedCurrency(0), m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1), m_takeSourceSlot(-1),
-      m_ownOffersOnly(false), m_pendingInput(PendingInput::None), m_offerCarriesItem(true), m_offerAmount(0)
+      m_selectedCurrency(0), m_priceCurrency(0), m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1),
+      m_takeSourceSlot(-1), m_ownOffersOnly(false), m_pendingInput(PendingInput::None), m_offerCarriesItem(true),
+      m_offerAmount(0)
 {
     m_Pos.x = 0;
     m_Pos.y = 0;
@@ -140,6 +141,8 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     InitButton(&m_abtn[BTN_BUY], &I18N::Game::BankBuyOffer);
     InitButton(&m_abtn[BTN_CANCEL_OFFER], &I18N::Game::BankCancelOffer);
     InitButton(&m_abtn[BTN_MINE], &I18N::Game::BankMyOffersOnly);
+    InitButton(&m_abtn[BTN_PRICE_PREV], &I18N::Game::BankPreviousPage);
+    InitButton(&m_abtn[BTN_PRICE_NEXT], &I18N::Game::BankNextPage);
 
     SetPos(x, y);
 
@@ -217,7 +220,12 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
         layout.button[index].bottom = buttonRowTop + buttonHeight;
     }
 
-    layout.pageRowTop = buttonRowTop - 26;
+    // The row which says what a price is named in stands right above the buttons which use it.
+    layout.priceRowTop = buttonRowTop - 24;
+    layout.pricePrevButton = {130, layout.priceRowTop, 154, layout.priceRowTop + 20};
+    layout.priceNextButton = {layout.width - 154, layout.priceRowTop, layout.width - 130, layout.priceRowTop + 20};
+
+    layout.pageRowTop = layout.priceRowTop - 26;
     layout.prevButton = {edge, layout.pageRowTop, edge + pageButtonWidth, layout.pageRowTop + pageButtonHeight};
     layout.nextButton = {layout.width - edge - pageButtonWidth, layout.pageRowTop, layout.width - edge,
                          layout.pageRowTop + pageButtonHeight};
@@ -261,6 +269,9 @@ void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
 
     place(BTN_PREV, m_layout.prevButton);
     place(BTN_NEXT, m_layout.nextButton);
+
+    place(BTN_PRICE_PREV, m_layout.pricePrevButton);
+    place(BTN_PRICE_NEXT, m_layout.priceNextButton);
 
     // Two buttons stand in the middle of the row, three fill it.
     RECT left = m_layout.button[0];
@@ -512,7 +523,7 @@ void SEASON3B::CNewUIBankWindow::RequestMarketPage(BYTE page)
 
 void SEASON3B::CNewUIBankWindow::FinishOffer(int64_t price)
 {
-    const auto priceCurrency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
+    const auto priceCurrency = static_cast<Net::Bank::Currency>(m_priceCurrency);
 
     if (m_offerCarriesItem)
     {
@@ -525,12 +536,16 @@ void SEASON3B::CNewUIBankWindow::FinishOffer(int64_t price)
     }
     else
     {
-        // What is offered cannot also be what is asked for, so a pile of zen is sold for cash and
-        // everything else for zen.
         const auto offeredCurrency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
-        const Net::Bank::Currency askedCurrency =
-            offeredCurrency == Net::Bank::Currency::Zen ? Net::Bank::Currency::WCoinC : Net::Bank::Currency::Zen;
-        SocketClient->ToGameServer()->SendMarketRegisterCurrency(offeredCurrency, m_offerAmount, askedCurrency, price);
+        if (offeredCurrency == priceCurrency)
+        {
+            // Asking for the same currency which is offered is a trade with itself.
+            g_pChatListBox->AddText(L"", I18N::Game::BankPriceCurrencyMustDiffer, SEASON3B::TYPE_ERROR_MESSAGE);
+            m_offerAmount = 0;
+            return;
+        }
+
+        SocketClient->ToGameServer()->SendMarketRegisterCurrency(offeredCurrency, m_offerAmount, priceCurrency, price);
     }
 
     m_offerAmount = 0;
@@ -563,7 +578,7 @@ void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
 
 const wchar_t* SEASON3B::CNewUIBankWindow::GetPriceCurrencyName() const
 {
-    return GetCurrencyName(static_cast<Net::Bank::Currency>(m_selectedCurrency));
+    return GetCurrencyName(static_cast<Net::Bank::Currency>(m_priceCurrency));
 }
 
 void SEASON3B::CNewUIBankWindow::CancelPendingInput()
@@ -741,8 +756,34 @@ bool SEASON3B::CNewUIBankWindow::ProcessTabs()
     return false;
 }
 
+bool SEASON3B::CNewUIBankWindow::ProcessPriceCurrencyButtons()
+{
+    const int count = static_cast<int>(Net::Bank::Currency::Count);
+
+    if (m_abtn[BTN_PRICE_PREV].UpdateMouseEvent())
+    {
+        m_priceCurrency = (m_priceCurrency + count - 1) % count;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    if (m_abtn[BTN_PRICE_NEXT].UpdateMouseEvent())
+    {
+        m_priceCurrency = (m_priceCurrency + 1) % count;
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    return false;
+}
+
 bool SEASON3B::CNewUIBankWindow::ProcessButtons()
 {
+    if (m_page != Page::Market && ProcessPriceCurrencyButtons())
+    {
+        return true;
+    }
+
     if (m_page != Page::Values)
     {
         if (m_abtn[BTN_PREV].UpdateMouseEvent())
@@ -1185,6 +1226,7 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
     RenderButton(m_abtn[BTN_TAKE_ITEM], false);
     RenderButton(m_abtn[BTN_OFFER_ITEM], false);
 
+    RenderPriceCurrencyRow();
     RenderHoveredItemInfo();
 }
 
@@ -1237,6 +1279,8 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
             g_pRenderText->RenderText(m_Pos.x + 206, top + 4, szAmount, m_layout.width - 232, 0, RT3_SORT_RIGHT);
         }
     }
+
+    RenderPriceCurrencyRow();
 
     RenderButton(m_abtn[BTN_DEPOSIT], false);
     RenderButton(m_abtn[BTN_WITHDRAW], false);
@@ -1313,6 +1357,25 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     RenderButton(m_abtn[BTN_BUY], false);
     RenderButton(m_abtn[BTN_CANCEL_OFFER], false);
     RenderButton(m_abtn[BTN_MINE], m_ownOffersOnly);
+}
+
+void SEASON3B::CNewUIBankWindow::RenderPriceCurrencyRow()
+{
+    wchar_t szText[128] = {0};
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(200, 194, 180, 255);
+    mu_swprintf(szText, L"%ls:", I18N::Game::BankPriceIn);
+    g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.priceRowTop + 3, szText, 110, 0);
+
+    g_pRenderText->SetTextColor(255, 210, 76, 255);
+    g_pRenderText->RenderText(m_Pos.x + m_layout.pricePrevButton.right, m_Pos.y + m_layout.priceRowTop + 3,
+                              GetCurrencyName(static_cast<Net::Bank::Currency>(m_priceCurrency)),
+                              m_layout.priceNextButton.left - m_layout.pricePrevButton.right, 0, RT3_SORT_CENTER);
+
+    RenderButton(m_abtn[BTN_PRICE_PREV], false);
+    RenderButton(m_abtn[BTN_PRICE_NEXT], false);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderHoveredItemInfo()

@@ -13143,4 +13143,7 @@
   <data name="Bank price currency must differ" xml:space="preserve">
     <value>Hãy chọn loại tiền khác với thứ đang rao bán</value>
   </data>
+  <data name="Bank own offer" xml:space="preserve">
+    <value>Đây là món do chính bạn rao bán</value>
+  </data>
 </root>

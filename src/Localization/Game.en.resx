@@ -13135,4 +13135,7 @@
   <data name="Bank price currency must differ" xml:space="preserve">
     <value>Ask for something other than what you are offering</value>
   </data>
+  <data name="Bank own offer" xml:space="preserve">
+    <value>That offer is your own</value>
+  </data>
 </root>

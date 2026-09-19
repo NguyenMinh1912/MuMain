@@ -631,6 +631,9 @@ void SEASON3B::CNewUIBankWindow::ShowRefusedRequest(Net::Bank::ResultCode result
     case Net::Bank::ResultCode::OfferGone:
         message = I18N::Game::BankOfferIsGone;
         break;
+    case Net::Bank::ResultCode::OwnOffer:
+        message = I18N::Game::BankOwnOffer;
+        break;
     case Net::Bank::ResultCode::TooManyOffers:
         message = I18N::Game::BankTooManyOffers;
         break;

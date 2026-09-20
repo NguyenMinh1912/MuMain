@@ -18,6 +18,7 @@
 #include "UI/NewUI/Inventory/NewUIItemMng.h"
 #include "UI/NewUI/NewUICommon.h"
 #include "UI/NewUI/NewUISystem.h"
+#include "UI/NewUI/Widgets/UIPanelStyle.h"
 
 #include <algorithm>
 #include <ctime>
@@ -25,66 +26,7 @@
 
 namespace
 {
-/// <summary>The body of the window, dark enough for the world behind it to stay behind it.</summary>
-constexpr unsigned int PANEL_COLOR = 0xEE0E0F12u;
-
-/// <summary>The bronze edge of the window and the darker line just inside it.</summary>
-constexpr unsigned int PANEL_EDGE_COLOR = 0xFF6B5A3Cu;
-constexpr unsigned int PANEL_INNER_COLOR = 0xFF241F16u;
-
-/// <summary>The area the boxes stand in, and the lines between them.</summary>
-constexpr unsigned int GRID_BACK_COLOR = 0x99000000u;
-constexpr unsigned int GRID_FRAME_COLOR = 0xFF4A4235u;
-constexpr unsigned int TILE_COLOR = 0xFF161A20u;
-constexpr unsigned int TILE_LINE_COLOR = 0xFF2F3640u;
-
-/// <summary>What is picked, and what the cursor is over.</summary>
-constexpr unsigned int PICKED_FILL_COLOR = 0x40FFC83Cu;
-constexpr unsigned int PICKED_EDGE_COLOR = 0xFFFFC83Cu;
-constexpr unsigned int HOVERED_FILL_COLOR = 0x22FFFFFFu;
-
-/// <summary>The plate of a button, in its three states, and its edge.</summary>
-constexpr unsigned int BUTTON_UP_COLOR = 0xFF433D31u;
-constexpr unsigned int BUTTON_OVER_COLOR = 0xFF564E3Eu;
-constexpr unsigned int BUTTON_DOWN_COLOR = 0xFF2B261Du;
-constexpr unsigned int BUTTON_EDGE_COLOR = 0xFF8A7444u;
-constexpr unsigned int BUTTON_EDGE_ON_COLOR = 0xFFFFC83Cu;
-
-/// <summary>The line which separates a heading from the rows under it.</summary>
-constexpr unsigned int HEADING_LINE_COLOR = 0x804A5566u;
-
-/// <summary>A colour text is written in.</summary>
-struct TextColor
-{
-    int red;
-    int green;
-    int blue;
-    int alpha;
-};
-
-/// <summary>The name of the window.</summary>
-constexpr TextColor TITLE_TEXT{240, 220, 164, 255};
-
-/// <summary>A heading over a list, and the names of its columns.</summary>
-constexpr TextColor HEADING_TEXT{143, 184, 232, 255};
-
-/// <summary>What is picked, and what a price is written in.</summary>
-constexpr TextColor HIGHLIGHT_TEXT{255, 210, 76, 255};
-
-/// <summary>The row which is picked, which stands on a plate of its own.</summary>
-constexpr TextColor PICKED_ROW_TEXT{255, 233, 168, 255};
-
-/// <summary>A row which is not picked.</summary>
-constexpr TextColor ROW_TEXT{220, 214, 200, 255};
-
-/// <summary>A label, and the number of the page.</summary>
-constexpr TextColor LABEL_TEXT{200, 194, 180, 255};
-
-/// <summary>The currency under a price, which is read after the digits.</summary>
-constexpr TextColor MUTED_TEXT{180, 176, 166, 255};
-
-/// <summary>The line which says that there is nothing to show.</summary>
-constexpr TextColor EMPTY_LIST_TEXT{180, 180, 180, 255};
+using namespace UI::PanelStyle;
 
 /// <summary>A column of a ledger row which has nothing in it.</summary>
 constexpr TextColor NOTHING_BOOKED_TEXT{170, 165, 155, 255};
@@ -140,12 +82,6 @@ constexpr int CURRENCY_AMOUNT_X = 206;
 /// <summary>How far the amount of a currency stops short of the edge of the window.</summary>
 constexpr int CURRENCY_AMOUNT_END = 26;
 
-/// <summary>Sets the colour the text which follows is written in.</summary>
-void UseTextColor(const TextColor& color)
-{
-    g_pRenderText->SetTextColor(color.red, color.green, color.blue, color.alpha);
-}
-
 /// <summary>The edge of a box which holds an offer the player made himself.</summary>
 constexpr unsigned int OWN_OFFER_EDGE_COLOR = 0xFF6FA8DCu;
 
@@ -175,21 +111,6 @@ constexpr int MONEY_CURRENCY_COUNT = 4;
 /// empty cell reads as "nothing" rather than as a row which failed to draw.
 /// </summary>
 constexpr const wchar_t* NOTHING_BOOKED = L"\u2014";
-
-/// <summary>Draws the four edges of a rectangle, which is the only border this window needs.</summary>
-void RenderBorder(int x, int y, int width, int height, unsigned int color, int thickness = 1)
-{
-    const float fx = static_cast<float>(x);
-    const float fy = static_cast<float>(y);
-    const float fw = static_cast<float>(width);
-    const float fh = static_cast<float>(height);
-    const float ft = static_cast<float>(thickness);
-
-    RenderColorQuadARGB(fx, fy, fw, ft, color);
-    RenderColorQuadARGB(fx, fy + fh - ft, fw, ft, color);
-    RenderColorQuadARGB(fx, fy + ft, ft, fh - 2.f * ft, color);
-    RenderColorQuadARGB(fx + fw - ft, fy + ft, ft, fh - 2.f * ft, color);
-}
 
 /// <summary>Writes an amount with a separator every three digits, which is how balances are read.</summary>
 void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)

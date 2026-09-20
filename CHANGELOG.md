@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/NguyenMinh1912/MuMain/compare/v1.0.0...v1.0.1) (2026-09-20)
+
+### Bug Fixes
+
+* **bank:** write the smallest amount the bank can name ([#3](https://github.com/NguyenMinh1912/MuMain/issues/3)) ([1b34d0c](https://github.com/NguyenMinh1912/MuMain/commit/1b34d0c67b7afb974635109969c17aba7f05f9f1))
+
 ## 1.0.0 (2026-09-20)
 
 ### Features

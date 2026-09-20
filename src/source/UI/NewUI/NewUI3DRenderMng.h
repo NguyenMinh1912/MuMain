@@ -18,6 +18,12 @@
 #define ITEMHOTKEYNUMBER_CAMERA_Z_ORDER 11.f
 #define TOOLTIP_CAMERA_Z_ORDER			5.6f
 
+// The bank window is drawn over the other dialogs, at a layer depth of 5.9, and a camera draws its
+// pictures where its own depth puts it. On the camera of the inventory, at 5.5, every picture of
+// the bank went under the panel of the bank - which is 93% opaque, so what was left of a jewel was
+// a smudge. This camera stands just above that panel instead.
+#define BANK_CAMERA_Z_ORDER				5.95f
+
 namespace SEASON3B
 {
     typedef void (*UI_2DEFFECT_CALLBACK)(LPVOID pClass, DWORD dwParamA, DWORD dwParamB);

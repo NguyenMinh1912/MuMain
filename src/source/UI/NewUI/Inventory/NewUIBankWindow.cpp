@@ -109,6 +109,9 @@ constexpr int LIST_ROW_TEXT_TOP = 4;
 /// <summary>How tall one row of a list is.</summary>
 constexpr int LIST_LINE_HEIGHT = 22;
 
+/// <summary>How tall one line of a list is, which is what a row is padded around.</summary>
+constexpr int LIST_TEXT_HEIGHT = LIST_LINE_HEIGHT - 2 * LIST_ROW_TEXT_TOP;
+
 /// <summary>How wide the label at the left end of a row of its own is.</summary>
 constexpr int LABEL_WIDTH = 110;
 
@@ -139,10 +142,20 @@ constexpr int MAX_FILTER_ROWS = 10;
 /// plate around the picture as well - the name and the picture are one thing to click on.
 /// </remarks>
 constexpr int CURRENCY_ICON_X = 20;
-constexpr int CURRENCY_ICON_SIZE = 18;
+
+/// <summary>How much of a row stays bare above and below the picture in it.</summary>
+constexpr int VALUE_ICON_MARGIN = 2;
+
+/// <summary>
+/// How tall a row of the values may grow, so a list with room to spare stops spreading out.
+/// </summary>
+constexpr int MAX_VALUE_LINE_HEIGHT = 28;
+
+/// <summary>How tall the heading over a group of currencies is.</summary>
+constexpr int VALUE_HEADING_HEIGHT = 20;
 
 /// <summary>How far under the top of its coin the letter of a currency sits.</summary>
-constexpr int COIN_GLYPH_TOP = 1;
+constexpr int COIN_GLYPH_TOP = 3;
 
 /// <summary>Where the name of a currency and where its amount are written.</summary>
 constexpr int CURRENCY_NAME_X = 42;
@@ -288,7 +301,7 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     m_pNewUIMng->AddUIObj(INTERFACE_BANK, this);
 
     m_pNewUI3DRenderMng = pNewUI3DRenderMng;
-    m_pNewUI3DRenderMng->Add3DRenderObj(this, INVENTORY_CAMERA_Z_ORDER);
+    m_pNewUI3DRenderMng->Add3DRenderObj(this, BANK_CAMERA_Z_ORDER);
 
     InitButton(&m_abtn[BTN_TAB_ITEMS], &I18N::Game::BankStorage);
     InitButton(&m_abtn[BTN_TAB_VALUES], &I18N::Game::BankValues);
@@ -431,15 +444,30 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     constexpr int groupCount = 2;
     layout.listLineHeight = LIST_LINE_HEIGHT;
 
-    const int listRoom = layout.contentBottom - layout.contentTop;
+    // The tab of the values reaches further down than the others: the row which says how many
+    // pages there are and the row which says what is picked belong to the tab of the items, and
+    // the list of the values has nothing to say in them. The room they leave is what lets a row
+    // carry a picture large enough to be read.
+    layout.valueListBottom = layout.priceRowTop - contentBottomGap;
+
+    const int valueRoom = layout.valueListBottom - layout.contentTop;
     const int listRows = static_cast<int>(Net::Bank::Currency::Count);
-    const int groupGap =
-        std::clamp(listRoom - groupCount * headingHeight - listRows * layout.listLineHeight, 0, maximumGroupGap);
+    layout.valueLineHeight =
+        std::clamp((valueRoom - groupCount * VALUE_HEADING_HEIGHT - maximumGroupGap) / std::max(1, listRows),
+                   LIST_LINE_HEIGHT, MAX_VALUE_LINE_HEIGHT);
+    layout.valueIconSize = layout.valueLineHeight - 2 * VALUE_ICON_MARGIN;
+
+    // A taller row does not leave its text at the top of it: the line sits in the middle, beside
+    // the picture, whatever height the row ended up with.
+    layout.valueTextTop = std::max(0, (layout.valueLineHeight - LIST_TEXT_HEIGHT) / 2);
+
+    const int groupGap = std::clamp(
+        valueRoom - groupCount * VALUE_HEADING_HEIGHT - listRows * layout.valueLineHeight, 0, maximumGroupGap);
 
     layout.moneyHeaderTop = layout.contentTop;
-    layout.moneyRowsTop = layout.moneyHeaderTop + headingHeight;
-    layout.jewelHeaderTop = layout.moneyRowsTop + MONEY_CURRENCY_COUNT * layout.listLineHeight + groupGap;
-    layout.jewelRowsTop = layout.jewelHeaderTop + headingHeight;
+    layout.moneyRowsTop = layout.moneyHeaderTop + VALUE_HEADING_HEIGHT;
+    layout.jewelHeaderTop = layout.moneyRowsTop + MONEY_CURRENCY_COUNT * layout.valueLineHeight + groupGap;
+    layout.jewelRowsTop = layout.jewelHeaderTop + VALUE_HEADING_HEIGHT;
 
     // The market shows its offers as boxes rather than as rows of text, because the picture of an
     // item says more than its name - and under every picture stands what it costs.
@@ -1017,11 +1045,13 @@ void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
 {
     const auto currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
 
-    // The dialog cuts what was typed down to what may move, but a player who typed a number by
-    // hand and pressed return went past its buttons, so the last word on it is here.
+    // The dialog hands back what was typed; how much of it may actually move is known here. A
+    // request which is cut down to nothing is refused out loud, because a button which silently
+    // does nothing is the worst of the three answers.
     amount = BankUI::ClampAmount(amount, GetAmountInputContext().Limit);
     if (amount <= 0)
     {
+        g_pChatListBox->AddText(L"", I18N::Game::BankNotEnoughValue, SEASON3B::TYPE_ERROR_MESSAGE);
         m_pendingInput = PendingInput::None;
         return;
     }
@@ -1598,19 +1628,19 @@ int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
 {
     const bool isMoney = currency < MONEY_CURRENCY_COUNT;
     const int rowInGroup = isMoney ? currency : currency - MONEY_CURRENCY_COUNT;
-    return m_Pos.y + (isMoney ? m_layout.moneyRowsTop : m_layout.jewelRowsTop) + rowInGroup * m_layout.listLineHeight;
+    return m_Pos.y + (isMoney ? m_layout.moneyRowsTop : m_layout.jewelRowsTop) + rowInGroup * m_layout.valueLineHeight;
 }
 
 void SEASON3B::CNewUIBankWindow::GetCurrencyIconRect(int currency, RECT& rect) const
 {
     // The picture is as tall as it is wide and sits in the middle of its row, so a row which grows
     // taller keeps it centred instead of leaving it at the top.
-    const int top = GetCurrencyRowTop(currency) + (m_layout.listLineHeight - CURRENCY_ICON_SIZE) / 2;
+    const int top = GetCurrencyRowTop(currency) + (m_layout.valueLineHeight - m_layout.valueIconSize) / 2;
 
     rect.left = m_Pos.x + CURRENCY_ICON_X;
     rect.top = top;
-    rect.right = rect.left + CURRENCY_ICON_SIZE;
-    rect.bottom = top + CURRENCY_ICON_SIZE;
+    rect.right = rect.left + m_layout.valueIconSize;
+    rect.bottom = top + m_layout.valueIconSize;
 }
 
 void SEASON3B::CNewUIBankWindow::GetOfferTileRect(int tile, RECT& rect) const
@@ -1709,7 +1739,7 @@ bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
     for (int currency = 0; currency < static_cast<int>(Net::Bank::Currency::Count); ++currency)
     {
         const int top = GetCurrencyRowTop(currency);
-        if (SEASON3B::CheckMouseIn(m_Pos.x + ROW_INSET, top, m_layout.width - 2 * ROW_INSET, m_layout.listLineHeight))
+        if (SEASON3B::CheckMouseIn(m_Pos.x + ROW_INSET, top, m_layout.width - 2 * ROW_INSET, m_layout.valueLineHeight))
         {
             if (SEASON3B::IsRelease(VK_LBUTTON))
             {
@@ -1963,8 +1993,8 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
             {
                 RenderColorQuadARGB(static_cast<float>(m_Pos.x + ROW_INSET), static_cast<float>(top),
                                     static_cast<float>(m_layout.width - 2 * ROW_INSET),
-                                    static_cast<float>(m_layout.listLineHeight), PICKED_FILL_COLOR);
-                RenderBorder(m_Pos.x + ROW_INSET, top, m_layout.width - 2 * ROW_INSET, m_layout.listLineHeight,
+                                    static_cast<float>(m_layout.valueLineHeight), PICKED_FILL_COLOR);
+                RenderBorder(m_Pos.x + ROW_INSET, top, m_layout.width - 2 * ROW_INSET, m_layout.valueLineHeight,
                              PICKED_EDGE_COLOR, 1);
                 EndRenderColor();
                 UseTextColor(PICKED_ROW_TEXT);
@@ -1987,13 +2017,13 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
                 UseTextColor(currency == m_selectedCurrency ? PICKED_ROW_TEXT : ROW_TEXT);
             }
 
-            g_pRenderText->RenderText(m_Pos.x + CURRENCY_NAME_X, top + LIST_ROW_TEXT_TOP,
+            g_pRenderText->RenderText(m_Pos.x + CURRENCY_NAME_X, top + m_layout.valueTextTop,
                                       GetCurrencyName(static_cast<Net::Bank::Currency>(currency)), CURRENCY_NAME_WIDTH,
                                       0);
 
             FormatAmount(Net::Bank::Store::Instance().GetBalance(static_cast<Net::Bank::Currency>(currency)), szAmount,
                          std::size(szAmount));
-            g_pRenderText->RenderText(m_Pos.x + CURRENCY_AMOUNT_X, top + LIST_ROW_TEXT_TOP, szAmount,
+            g_pRenderText->RenderText(m_Pos.x + CURRENCY_AMOUNT_X, top + m_layout.valueTextTop, szAmount,
                                       m_layout.width - CURRENCY_AMOUNT_X - CURRENCY_AMOUNT_END, 0, RT3_SORT_RIGHT);
         }
     }
@@ -2343,7 +2373,7 @@ void SEASON3B::CNewUIBankWindow::RenderHoveredItemInfo()
         return;
     }
 
-    m_pNewUI3DRenderMng->RenderUI2DEffect(INVENTORY_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_ITEM_TOOLTIP, 0);
+    m_pNewUI3DRenderMng->RenderUI2DEffect(BANK_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_ITEM_TOOLTIP, 0);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderHoveredOfferInfo()
@@ -2365,7 +2395,7 @@ void SEASON3B::CNewUIBankWindow::RenderHoveredOfferInfo()
         return;
     }
 
-    m_pNewUI3DRenderMng->RenderUI2DEffect(INVENTORY_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_OFFER_TOOLTIP, 0);
+    m_pNewUI3DRenderMng->RenderUI2DEffect(BANK_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_OFFER_TOOLTIP, 0);
 }
 
 void SEASON3B::CNewUIBankWindow::UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB)
@@ -2466,7 +2496,7 @@ void SEASON3B::CNewUIBankWindow::RenderValueIcons3D()
 
         RECT rect;
         GetCurrencyIconRect(currency, rect);
-        RenderItemPicture(jewel, rect.left, rect.top, CURRENCY_ICON_SIZE, CURRENCY_ICON_SIZE, 0);
+        RenderItemPicture(jewel, rect.left, rect.top, m_layout.valueIconSize, m_layout.valueIconSize, 0);
     }
 }
 

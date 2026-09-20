@@ -264,6 +264,28 @@ private:
         RECT button[3];
 
         int listLineHeight;
+
+        /// <summary>
+        /// How tall one row of the tab of the values is.
+        /// </summary>
+        /// <remarks>
+        /// Taller than a row of the ledger, because a row here carries the picture of what it
+        /// counts and a picture of eighteen pixels is a smudge. The room comes from the tab of the
+        /// values reaching down to the row which says what a price is named in: the rows which
+        /// stop the other tabs short - the number of the page and what is picked - belong to the
+        /// tab of the items and say nothing here.
+        /// </remarks>
+        int valueLineHeight;
+
+        /// <summary>How far down the list of the values may reach.</summary>
+        int valueListBottom;
+
+        /// <summary>How large the picture beside a currency is drawn.</summary>
+        int valueIconSize;
+
+        /// <summary>How far under the top of its row the text of a currency sits.</summary>
+        int valueTextTop;
+
         int moneyHeaderTop;
         int moneyRowsTop;
         int jewelHeaderTop;

@@ -4959,6 +4959,7 @@ void SEASON3B::CNewUIBankAmountMsgBox::PlaceEverything()
     {
         WriteAmount(m_request.Limit);
     }
+
 }
 
 void SEASON3B::CNewUIBankAmountMsgBox::WriteAmount(int64_t amount)
@@ -4999,7 +5000,10 @@ int64_t SEASON3B::CNewUIBankAmountMsgBox::GetAmount() const
         return 0;
     }
 
-    return BankUI::ClampAmount(static_cast<int64_t>(value), m_request.Limit);
+    // What was typed, not what may move: a dialog which quietly returned nothing because of a
+    // limit it worked out itself left the player pressing a button which did nothing at all. The
+    // bank window cuts it down and says so, which is where the limits are known anyway.
+    return static_cast<int64_t>(value);
 }
 
 bool SEASON3B::CNewUIBankAmountMsgBox::IsCursorIn(const RECT& rect)

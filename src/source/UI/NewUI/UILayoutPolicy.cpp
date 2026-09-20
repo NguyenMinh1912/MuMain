@@ -22,6 +22,7 @@ UI::Scaling::LayoutMode UI::Layout::ForInterface(std::uint32_t interfaceKey)
 
     case INTERFACE_CHATINPUTBOX:
     case INTERFACE_WINDOW_MENU:
+    case INTERFACE_GAME_MENU:
     case INTERFACE_KANTURU_INFO:
     case INTERFACE_CHATLOGWINDOW:
     case INTERFACE_BLOODCASTLE_TIME:

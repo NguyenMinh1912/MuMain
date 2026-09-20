@@ -117,6 +117,9 @@ enum INTERFACE_LIST
     // The bank of the account, which is not part of the original client. Appended at the end so
     // that no existing window id shifts.
     INTERFACE_BANK,
+    // The menu of the hud: the quick grid the menu button opens, and the full panel behind it.
+    // Appended at the end for the same reason the bank was.
+    INTERFACE_GAME_MENU,
     INTERFACE_END,
     INTERFACE_COUNT = INTERFACE_END - 2,
 };

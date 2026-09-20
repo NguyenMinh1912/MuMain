@@ -13,6 +13,7 @@
 #include "UI/NewUI/NewUIBase.h"
 #include "UI/NewUI/Widgets/NewUIButton.h"
 #include "UI/NewUI/Widgets/NewUIComboBox.h"
+#include "UI/Scaling/UITransform.h"
 
 #include <array>
 #include <span>
@@ -67,7 +68,7 @@ public:
     /// <inheritdoc/>
     bool IsVisible() const override;
 
-    float GetLayerDepth() override; //. 2.2f
+    float GetLayerDepth() override; //. 5.9f
 
     /// <summary>Tells the server that the dialog was opened, and asks for what it holds.</summary>
     void OpeningProcess();
@@ -209,7 +210,18 @@ private:
 
     /// <summary>The size of the window. Everything else follows from it.</summary>
     static constexpr int BANK_WIDTH = 440;
-    static constexpr int BANK_HEIGHT = 470;
+
+    /// <summary>
+    /// How tall the window is, which is the whole height the dock it stands in has.
+    /// </summary>
+    /// <remarks>
+    /// The dock ends at <see cref="UI::Scaling::DockLogicalBottom"/> - under it stands the hud
+    /// frame, and under that nothing at all. A taller window does not scroll and is not moved up:
+    /// its bottom is simply drawn past the edge of the screen, which is where the row of buttons
+    /// stands. The height is therefore taken from the dock rather than typed, so the window cannot
+    /// outgrow the room it is given again.
+    /// </remarks>
+    static constexpr int BANK_HEIGHT = UI::Scaling::DockLogicalBottom;
 
     /// <summary>
     /// Where every part of the window stands, in window coordinates.

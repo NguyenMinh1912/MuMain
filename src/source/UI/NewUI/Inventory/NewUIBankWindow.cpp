@@ -352,7 +352,6 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     constexpr int contentTopGap = 8;
     constexpr int contentBottomGap = 4;
     constexpr int headingHeight = 24;
-    constexpr int groupGap = 14;
     constexpr int storageTileSize = 68;
     constexpr int gridSideGap = 8;
 
@@ -402,8 +401,19 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     layout.tileOriginX = (layout.width - layout.tileColumns * layout.tileSize) / 2;
     layout.tileOriginY = layout.contentTop;
 
-    // The two lists share a line height; each starts under its own heading.
+    // The two lists share a line height; each starts under its own heading. What is left over the
+    // rows the currencies need sets the two groups apart, up to a gap which is enough to read them
+    // as two: a window with less room puts them closer together rather than writing the last jewel
+    // over the row under the lists.
+    constexpr int maximumGroupGap = 14;
+    constexpr int groupCount = 2;
     layout.listLineHeight = LIST_LINE_HEIGHT;
+
+    const int listRoom = layout.contentBottom - layout.contentTop;
+    const int listRows = static_cast<int>(Net::Bank::Currency::Count);
+    const int groupGap =
+        std::clamp(listRoom - groupCount * headingHeight - listRows * layout.listLineHeight, 0, maximumGroupGap);
+
     layout.moneyHeaderTop = layout.contentTop;
     layout.moneyRowsTop = layout.moneyHeaderTop + headingHeight;
     layout.jewelHeaderTop = layout.moneyRowsTop + MONEY_CURRENCY_COUNT * layout.listLineHeight + groupGap;
@@ -413,16 +423,22 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     // item says more than its name - and under every picture stands what it costs.
     constexpr int filterRowHeight = 24;
     constexpr int tileMinWidth = 80;
-    constexpr int picturePartHeight = 60;
+    constexpr int preferredTileHeight = 86;
     constexpr int priceStripHeight = 26;
+    constexpr int wantedTileRows = 3;
 
     layout.marketFilterRowTop = layout.contentTop;
     layout.marketTileColumns = std::max(1, (layout.width - 2 * edge) / tileMinWidth);
     layout.marketTileWidth = (layout.width - 2 * edge) / layout.marketTileColumns;
-    layout.marketPictureHeight = picturePartHeight;
-    layout.marketTileHeight = picturePartHeight + priceStripHeight;
     layout.marketTileOriginY = layout.marketFilterRowTop + filterRowHeight + gap;
-    layout.marketTileRows = std::max(1, (layout.contentBottom - layout.marketTileOriginY) / layout.marketTileHeight);
+
+    // The market wants the three rows a page of the server fills, and its boxes are as tall as the
+    // room allows up to the size at which a picture is comfortable. A window with less room for
+    // them therefore draws smaller boxes instead of dropping the offers which no longer fit in.
+    const int marketRoom = std::max(1, layout.contentBottom - layout.marketTileOriginY);
+    layout.marketTileHeight = std::clamp(marketRoom / wantedTileRows, priceStripHeight + 1, preferredTileHeight);
+    layout.marketPictureHeight = layout.marketTileHeight - priceStripHeight;
+    layout.marketTileRows = std::max(1, marketRoom / layout.marketTileHeight);
     layout.marketTilesPerPage = layout.marketTileColumns * layout.marketTileRows;
     layout.marketTileOriginX = (layout.width - layout.marketTileColumns * layout.marketTileWidth) / 2;
 
@@ -512,10 +528,16 @@ void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
 
 void SEASON3B::CNewUIBankWindow::ApplyLayoutToFilters()
 {
+    // The dropdown of the currencies stands on the last row of the window, where its list has no
+    // room under it: told where the window ends, it opens upwards over the boxes instead of past
+    // the bottom of the screen, where the currencies at the end of it could not be clicked.
+    const int bottomLimit = m_Pos.y + m_layout.height;
+
     for (int index = 0; index < MAX_FILTER; ++index)
     {
         const RECT& rect = index == FILTER_CURRENCY ? m_layout.marketCurrencyFilter : m_layout.marketFilter[index];
         m_marketFilter[index].SetPos(m_Pos.x + rect.left, m_Pos.y + rect.top);
+        m_marketFilter[index].SetBottomLimit(bottomLimit);
     }
 }
 
@@ -684,7 +706,12 @@ bool SEASON3B::CNewUIBankWindow::IsAnyMarketFilterOpen() const
 
 float SEASON3B::CNewUIBankWindow::GetLayerDepth()
 {
-    return 2.2f;
+    // The window is wider than the dock is used to, so whatever else is open - the vault, the
+    // chaos machine, a quest window, the inventory - stood over it at the depth of the vault it
+    // was given. It is drawn over every one of them now, and under only what has to stay on top
+    // of a window: the log this window writes its refusals into, the chat, the tooltip of an
+    // item, the menu, the options, the hud frame, and the message boxes it opens itself.
+    return 5.9f;
 }
 
 bool SEASON3B::CNewUIBankWindow::IsVisible() const

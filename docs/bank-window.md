@@ -8,6 +8,12 @@ The window only appears on a server which runs the bank. Talking to the npc whic
 dialog opens it; a server may also enable a `/bank` command which opens the same window from
 anywhere.
 
+It is wider than the windows it stands beside and fills the height between the top of the screen
+and the hud frame, so nothing of it is left under the edge. While it is open it is drawn over every
+other window - the vault, the chaos machine, the inventory, a quest - and under only the chat, the
+system log, the tooltip of an item and the dialogs it opens itself, which all have to stay
+readable. Closing it gives the window under it back.
+
 ## The storage page
 
 The boxes work exactly like the vault: drag an item from the inventory into the bank to deposit
@@ -61,7 +67,9 @@ An offer of this account carries a blue edge: it cannot be bought, only taken ba
 ### Searching it
 
 Four dropdowns narrow what is listed. They search the whole market and not the page on screen: the
-server sends one page at a time, so every one of them is answered where the offers are kept.
+server sends one page at a time, so every one of them is answered where the offers are kept. The
+dropdown of the currencies stands on the last row of the window, so its list opens upwards over the
+boxes rather than off the bottom of the screen.
 
 | Dropdown | What it narrows to |
 |---|---|

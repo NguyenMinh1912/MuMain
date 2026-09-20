@@ -98,6 +98,9 @@ public:
     /// <summary>Asks the server for a page of the market.</summary>
     void RequestMarketPage(BYTE page);
 
+    /// <summary>Asks the server for a page of what the bank booked.</summary>
+    void RequestLedgerPage(BYTE page);
+
     /// <summary>Offers what is picked at the price the player typed.</summary>
     /// <param name="price">The price, in the currency which is selected.</param>
     void FinishOffer(int64_t price);
@@ -122,6 +125,7 @@ private:
         Items,
         Values,
         Market,
+        Ledger,
     };
 
     /// <summary>
@@ -152,6 +156,7 @@ private:
         BTN_TAB_ITEMS = 0,
         BTN_TAB_VALUES,
         BTN_TAB_MARKET,
+        BTN_TAB_LEDGER,
         BTN_PREV,
         BTN_NEXT,
         BTN_TAKE_ITEM,
@@ -162,6 +167,7 @@ private:
         BTN_BUY,
         BTN_CANCEL_OFFER,
         BTN_MINE,
+        BTN_LEDGER_REFRESH,
         BTN_PRICE_PREV,
         BTN_PRICE_NEXT,
         MAX_BTN
@@ -185,7 +191,7 @@ private:
         int width;
         int height;
 
-        RECT tab[3];
+        RECT tab[4];
 
         int contentTop;
         int contentBottom;
@@ -215,6 +221,21 @@ private:
         int marketHeaderTop;
         int marketRowsTop;
         int marketRows;
+
+        int ledgerHeaderTop;
+        int ledgerRowsTop;
+        int ledgerRows;
+
+        /// <summary>
+        /// Where the four columns of a ledger row start, and where the amount ends. The amount is
+        /// written towards its right edge, because a column of numbers is read by its last digit.
+        /// </summary>
+        int ledgerTimeX;
+        int ledgerTypeX;
+        int ledgerDetailX;
+        int ledgerDetailWidth;
+        int ledgerAmountRight;
+        int ledgerAmountWidth;
     };
 
     void BuildLayout();
@@ -229,6 +250,7 @@ private:
     void RenderItemsPage();
     void RenderValuesPage();
     void RenderMarketPage();
+    void RenderLedgerPage();
     void RenderHoveredItemInfo();
 
     /// <summary>Draws the row which says, and lets the player change, what a price is named in.</summary>
@@ -242,10 +264,12 @@ private:
     bool ProcessItemsPageButtons();
     bool ProcessValuesPageButtons();
     bool ProcessMarketPageButtons();
+    bool ProcessLedgerPageButtons();
     bool ProcessPriceCurrencyButtons();
     bool ProcessTileSelection();
     bool ProcessValueSelection();
     bool ProcessOfferSelection();
+    bool ProcessLedgerSelection();
 
     /// <summary>Gets the box the cursor is over, or -1 when it is over none.</summary>
     int GetTileAtCursor() const;
@@ -258,6 +282,9 @@ private:
 
     /// <summary>Gets where a row of the market is drawn, which is also where it is clicked.</summary>
     int GetOfferRowTop(int row) const;
+
+    /// <summary>Gets where a row of the ledger is drawn, which is also where it is clicked.</summary>
+    int GetLedgerRowTop(int row) const;
 
     /// <summary>Tells the player to pick a box first, when none is picked.</summary>
     bool HasSelectedItem();
@@ -273,6 +300,29 @@ private:
 
     /// <summary>Gets the name of a currency as it is listed.</summary>
     static const wchar_t* GetCurrencyName(Net::Bank::Currency currency);
+
+    /// <summary>
+    /// Gets the short name of a currency, which is what fits beside an amount in a ledger row.
+    /// </summary>
+    static const wchar_t* GetCurrencyShortName(Net::Bank::Currency currency);
+
+    /// <summary>Gets why a ledger entry was booked, in words.</summary>
+    static const wchar_t* GetLedgerTypeName(Net::Bank::LedgerEntryType type);
+
+    /// <summary>
+    /// Writes when an entry was booked, in the time of this machine.
+    /// </summary>
+    /// <remarks>
+    /// The server sends seconds since the unix epoch in UTC; a player reads the clock on his wall,
+    /// so it is turned into local time here and nowhere else.
+    /// </remarks>
+    static void FormatLedgerTime(int64_t timestamp, wchar_t* text, size_t textLength);
+
+    /// <summary>
+    /// Gets what a ledger row says under the columns: the description when there is one, else who
+    /// the other side was, else nothing at all.
+    /// </summary>
+    static const wchar_t* GetLedgerDetail(const Net::Bank::LedgerEntry& entry);
 
     /// <summary>Draws what has to be drawn above the boxes, which is the tooltip of an item.</summary>
     static void UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB);
@@ -295,6 +345,31 @@ private:
     int m_priceCurrency;
 
     int m_selectedOffer;
+
+    /// <summary>The ledger row the player picked; -1 when none is. Its detail is written out below.</summary>
+    int m_selectedLedgerRow;
+
+    /// <summary>
+    /// The ledger page which was last asked for; -1 when none has been.
+    /// </summary>
+    /// <remarks>
+    /// The store keeps the page which arrived, not the one on its way, so without this the window
+    /// would read the old page for as many frames as the answer takes and act on it again in every
+    /// one of them - which turned one correction into a request per frame.
+    /// </remarks>
+    int m_ledgerRequestedPage;
+
+    /// <summary>
+    /// The last page of the ledger, once the window has found it; -1 while it has not.
+    /// </summary>
+    /// <remarks>
+    /// The server sends no count of pages and no page size, so the end cannot be worked out from a
+    /// page which arrived - a bank with three entries and a bank whose pages hold three look alike.
+    /// The end is therefore found by turning past it once: a page which comes back empty says the
+    /// one before it was the last, and the window goes straight back to it. Asking for page 0
+    /// forgets this again, because a bank which booked something since has an end further on.
+    /// </remarks>
+    int m_ledgerLastPage;
 
     /// <summary>What the server sent for every box, by box number.</summary>
     std::array<ITEM*, BANK_TOTAL_SLOTS> m_boxes{};

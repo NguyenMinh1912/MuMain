@@ -19,6 +19,7 @@
 #include "UI/NewUI/NewUISystem.h"
 
 #include <algorithm>
+#include <ctime>
 
 namespace
 {
@@ -52,6 +53,12 @@ constexpr unsigned int HEADING_LINE_COLOR = 0x804A5566u;
 
 /// <summary>How many of the currencies are money; the rest are jewels.</summary>
 constexpr int MONEY_CURRENCY_COUNT = 4;
+
+/// <summary>
+/// What a column of a ledger row says when the entry has nothing to put in it: an em dash, so an
+/// empty cell reads as "nothing" rather than as a row which failed to draw.
+/// </summary>
+constexpr const wchar_t* NOTHING_BOOKED = L"\u2014";
 
 /// <summary>Draws the four edges of a rectangle, which is the only border this window needs.</summary>
 void RenderBorder(int x, int y, int width, int height, unsigned int color, int thickness = 1)
@@ -100,7 +107,8 @@ void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 
 SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
     : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_layout{}, m_page(Page::Items), m_itemPage(0),
-      m_selectedCurrency(0), m_priceCurrency(0), m_selectedOffer(-1), m_selectedSlot(-1), m_depositSourceSlot(-1),
+      m_selectedCurrency(0), m_priceCurrency(0), m_selectedOffer(-1), m_selectedLedgerRow(-1),
+      m_ledgerRequestedPage(-1), m_ledgerLastPage(-1), m_selectedSlot(-1), m_depositSourceSlot(-1),
       m_takeSourceSlot(-1), m_ownOffersOnly(false), m_waitingForMarketAnswer(false), m_pendingInput(PendingInput::None),
       m_offerCarriesItem(true), m_offerAmount(0)
 {
@@ -131,6 +139,7 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     InitButton(&m_abtn[BTN_TAB_ITEMS], &I18N::Game::BankStorage);
     InitButton(&m_abtn[BTN_TAB_VALUES], &I18N::Game::BankValues);
     InitButton(&m_abtn[BTN_TAB_MARKET], &I18N::Game::BankMarket);
+    InitButton(&m_abtn[BTN_TAB_LEDGER], &I18N::Game::BankLedger);
     InitButton(&m_abtn[BTN_PREV], &I18N::Game::BankPreviousPage);
     InitButton(&m_abtn[BTN_NEXT], &I18N::Game::BankNextPage);
     InitButton(&m_abtn[BTN_TAKE_ITEM], &I18N::Game::BankTakeItem);
@@ -141,6 +150,7 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
     InitButton(&m_abtn[BTN_BUY], &I18N::Game::BankBuyOffer);
     InitButton(&m_abtn[BTN_CANCEL_OFFER], &I18N::Game::BankCancelOffer);
     InitButton(&m_abtn[BTN_MINE], &I18N::Game::BankMyOffersOnly);
+    InitButton(&m_abtn[BTN_LEDGER_REFRESH], &I18N::Game::BankRefresh);
     InitButton(&m_abtn[BTN_PRICE_PREV], &I18N::Game::BankPreviousPage);
     InitButton(&m_abtn[BTN_PRICE_NEXT], &I18N::Game::BankNextPage);
 
@@ -200,8 +210,9 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     constexpr int pageButtonWidth = 44;
     constexpr int pageButtonHeight = 20;
 
-    const int tabWidth = std::max(1, (layout.width - 2 * edge - 2 * gap) / 3);
-    for (int index = 0; index < 3; ++index)
+    constexpr int tabCount = 4;
+    const int tabWidth = std::max(1, (layout.width - 2 * edge - (tabCount - 1) * gap) / tabCount);
+    for (int index = 0; index < tabCount; ++index)
     {
         layout.tab[index].left = edge + index * (tabWidth + gap);
         layout.tab[index].top = titleHeight;
@@ -211,7 +222,7 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
 
     // The row of buttons stands at the bottom; everything else fills what is left above it.
     const int buttonRowTop = layout.height - buttonHeight - 16;
-    const int buttonWidth = tabWidth;
+    const int buttonWidth = std::max(1, (layout.width - 2 * edge - 2 * gap) / 3);
     for (int index = 0; index < 3; ++index)
     {
         layout.button[index].left = edge + index * (buttonWidth + gap);
@@ -253,6 +264,24 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     layout.marketHeaderTop = layout.contentTop;
     layout.marketRowsTop = layout.marketHeaderTop + 24;
     layout.marketRows = std::max(1, (layout.contentBottom - layout.marketRowsTop) / layout.listLineHeight);
+
+    layout.ledgerHeaderTop = layout.contentTop;
+    layout.ledgerRowsTop = layout.ledgerHeaderTop + 24;
+    layout.ledgerRows = std::max(1, (layout.contentBottom - layout.ledgerRowsTop) / layout.listLineHeight);
+
+    // The columns stand between the same edges the market list uses, so the two read as one window.
+    // They are shares of that width and not four typed numbers, which is what lets a wider window
+    // widen its columns instead of leaving a gap at the end.
+    const int listLeft = 26;
+    const int listRight = layout.width - 26;
+    const int listWidth = std::max(1, listRight - listLeft);
+
+    layout.ledgerTimeX = listLeft;
+    layout.ledgerTypeX = listLeft + listWidth * 21 / 100;
+    layout.ledgerDetailX = listLeft + listWidth * 44 / 100;
+    layout.ledgerDetailWidth = listWidth * 28 / 100;
+    layout.ledgerAmountRight = listRight;
+    layout.ledgerAmountWidth = listWidth * 27 / 100;
 }
 
 void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
@@ -266,6 +295,7 @@ void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
     place(BTN_TAB_ITEMS, m_layout.tab[0]);
     place(BTN_TAB_VALUES, m_layout.tab[1]);
     place(BTN_TAB_MARKET, m_layout.tab[2]);
+    place(BTN_TAB_LEDGER, m_layout.tab[3]);
 
     place(BTN_PREV, m_layout.prevButton);
     place(BTN_NEXT, m_layout.nextButton);
@@ -292,6 +322,8 @@ void SEASON3B::CNewUIBankWindow::ApplyLayoutToButtons()
     place(BTN_BUY, m_layout.button[0]);
     place(BTN_CANCEL_OFFER, m_layout.button[1]);
     place(BTN_MINE, m_layout.button[2]);
+
+    place(BTN_LEDGER_REFRESH, m_layout.button[1]);
 }
 
 float SEASON3B::CNewUIBankWindow::GetLayerDepth()
@@ -520,6 +552,21 @@ void SEASON3B::CNewUIBankWindow::RequestMarketPage(BYTE page)
     SocketClient->ToGameServer()->SendMarketList(page, Net::Bank::AnyCurrency, m_ownOffersOnly, L"");
 }
 
+void SEASON3B::CNewUIBankWindow::RequestLedgerPage(BYTE page)
+{
+    // Which row was picked says nothing about the page which is on its way.
+    m_selectedLedgerRow = -1;
+
+    if (page == 0)
+    {
+        // Starting again from the front: whatever end was found before may have moved.
+        m_ledgerLastPage = -1;
+    }
+
+    m_ledgerRequestedPage = page;
+    SocketClient->ToGameServer()->SendBankLedger(page);
+}
+
 void SEASON3B::CNewUIBankWindow::FinishOffer(int64_t price)
 {
     const auto priceCurrency = static_cast<Net::Bank::Currency>(m_priceCurrency);
@@ -669,6 +716,32 @@ bool SEASON3B::CNewUIBankWindow::Update()
             m_selectedOffer = -1;
             RequestMarketPage(Net::Bank::Store::Instance().GetOfferPage());
         }
+
+        if (result == Net::Bank::ResultCode::Success && m_page == Page::Ledger)
+        {
+            RequestLedgerPage(Net::Bank::Store::Instance().GetLedgerPage());
+        }
+    }
+
+    // Only the answer to the page which was asked for says anything about where the ledger ends.
+    // While another one is on its way the store still holds the page before it, and reading that
+    // one again in every frame turned a single correction into a request per frame.
+    if (m_page == Page::Ledger && Net::Bank::Store::Instance().GetLedgerPage() == m_ledgerRequestedPage)
+    {
+        const auto& store = Net::Bank::Store::Instance();
+        const int page = store.GetLedgerPage();
+
+        if (store.GetLedger().empty() && page > 0)
+        {
+            // Turned past the end. The page before this one was the last, and the window goes back
+            // to it rather than leaving the player looking at nothing.
+            m_ledgerLastPage = page - 1;
+            RequestLedgerPage(static_cast<BYTE>(page - 1));
+        }
+        else if (!store.GetLedger().empty() && m_ledgerLastPage >= 0 && page > m_ledgerLastPage)
+        {
+            m_ledgerLastPage = page;
+        }
     }
 
     // A dialog is opened from here and never from the callback of another one, so a message box is
@@ -725,6 +798,11 @@ bool SEASON3B::CNewUIBankWindow::UpdateMouseEvent()
         return false;
     }
 
+    if (m_page == Page::Ledger && ProcessLedgerSelection())
+    {
+        return false;
+    }
+
     // The window swallows what happens over it, so a click next to a box does not walk the
     // character to the other side of the map.
     if (SEASON3B::CheckMouseIn(m_Pos.x, m_Pos.y, m_layout.width, m_layout.height))
@@ -765,6 +843,14 @@ bool SEASON3B::CNewUIBankWindow::ProcessTabs()
         return true;
     }
 
+    if (m_abtn[BTN_TAB_LEDGER].UpdateMouseEvent())
+    {
+        m_page = Page::Ledger;
+        RequestLedgerPage(0);
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
     return false;
 }
 
@@ -791,7 +877,8 @@ bool SEASON3B::CNewUIBankWindow::ProcessPriceCurrencyButtons()
 
 bool SEASON3B::CNewUIBankWindow::ProcessButtons()
 {
-    if (m_page != Page::Market && ProcessPriceCurrencyButtons())
+    // The row which names the currency of a price belongs to the two tabs which offer something.
+    if ((m_page == Page::Items || m_page == Page::Values) && ProcessPriceCurrencyButtons())
     {
         return true;
     }
@@ -800,14 +887,30 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
     {
         if (m_abtn[BTN_PREV].UpdateMouseEvent())
         {
-            if (m_page == Page::Items)
+            const auto& store = Net::Bank::Store::Instance();
+            switch (m_page)
             {
+            case Page::Items:
                 m_itemPage = m_itemPage > 0 ? m_itemPage - 1 : m_layout.itemPageCount - 1;
-            }
-            else
+                break;
+            case Page::Market:
             {
-                const BYTE page = Net::Bank::Store::Instance().GetOfferPage();
+                const BYTE page = store.GetOfferPage();
                 RequestMarketPage(page > 0 ? static_cast<BYTE>(page - 1) : 0);
+                break;
+            }
+            case Page::Ledger:
+            {
+                const BYTE page = store.GetLedgerPage();
+                if (page > 0)
+                {
+                    RequestLedgerPage(static_cast<BYTE>(page - 1));
+                }
+
+                break;
+            }
+            default:
+                break;
             }
 
             PlayBuffer(SOUND_CLICK01);
@@ -816,18 +919,33 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
 
         if (m_abtn[BTN_NEXT].UpdateMouseEvent())
         {
-            if (m_page == Page::Items)
+            const auto& store = Net::Bank::Store::Instance();
+            switch (m_page)
             {
+            case Page::Items:
                 m_itemPage = (m_itemPage + 1) % m_layout.itemPageCount;
-            }
-            else
+                break;
+            case Page::Market:
             {
-                const auto& store = Net::Bank::Store::Instance();
                 const BYTE page = store.GetOfferPage();
                 if (page + 1 < store.GetOfferPageCount())
                 {
                     RequestMarketPage(static_cast<BYTE>(page + 1));
                 }
+
+                break;
+            }
+            case Page::Ledger:
+                // Turning forwards stops at the end once the end has been found.
+                if (!store.GetLedger().empty() &&
+                    (m_ledgerLastPage < 0 || store.GetLedgerPage() < m_ledgerLastPage))
+                {
+                    RequestLedgerPage(static_cast<BYTE>(store.GetLedgerPage() + 1));
+                }
+
+                break;
+            default:
+                break;
             }
 
             PlayBuffer(SOUND_CLICK01);
@@ -843,6 +961,8 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
         return ProcessValuesPageButtons();
     case Page::Market:
         return ProcessMarketPageButtons();
+    case Page::Ledger:
+        return ProcessLedgerPageButtons();
     }
 
     return false;
@@ -927,6 +1047,18 @@ bool SEASON3B::CNewUIBankWindow::ProcessMarketPageButtons()
     return false;
 }
 
+bool SEASON3B::CNewUIBankWindow::ProcessLedgerPageButtons()
+{
+    if (m_abtn[BTN_LEDGER_REFRESH].UpdateMouseEvent())
+    {
+        RequestLedgerPage(Net::Bank::Store::Instance().GetLedgerPage());
+        PlayBuffer(SOUND_CLICK01);
+        return true;
+    }
+
+    return false;
+}
+
 void SEASON3B::CNewUIBankWindow::BuySelectedOffer()
 {
     const auto& offers = Net::Bank::Store::Instance().GetOffers();
@@ -974,6 +1106,11 @@ int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
 int SEASON3B::CNewUIBankWindow::GetOfferRowTop(int row) const
 {
     return m_Pos.y + m_layout.marketRowsTop + row * m_layout.listLineHeight;
+}
+
+int SEASON3B::CNewUIBankWindow::GetLedgerRowTop(int row) const
+{
+    return m_Pos.y + m_layout.ledgerRowsTop + row * m_layout.listLineHeight;
 }
 
 int SEASON3B::CNewUIBankWindow::GetTileAtCursor() const
@@ -1072,6 +1209,29 @@ bool SEASON3B::CNewUIBankWindow::ProcessOfferSelection()
     return false;
 }
 
+bool SEASON3B::CNewUIBankWindow::ProcessLedgerSelection()
+{
+    const auto& entries = Net::Bank::Store::Instance().GetLedger();
+    const int rows = std::min(static_cast<int>(entries.size()), m_layout.ledgerRows);
+
+    for (int row = 0; row < rows; ++row)
+    {
+        const int top = GetLedgerRowTop(row);
+        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight))
+        {
+            if (SEASON3B::IsRelease(VK_LBUTTON))
+            {
+                m_selectedLedgerRow = row;
+                PlayBuffer(SOUND_CLICK01);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool SEASON3B::CNewUIBankWindow::Render()
 {
     if (!IsVisible())
@@ -1094,6 +1254,9 @@ bool SEASON3B::CNewUIBankWindow::Render()
         break;
     case Page::Market:
         RenderMarketPage();
+        break;
+    case Page::Ledger:
+        RenderLedgerPage();
         break;
     }
 
@@ -1149,6 +1312,7 @@ void SEASON3B::CNewUIBankWindow::RenderTabs()
     RenderButton(m_abtn[BTN_TAB_ITEMS], m_page == Page::Items);
     RenderButton(m_abtn[BTN_TAB_VALUES], m_page == Page::Values);
     RenderButton(m_abtn[BTN_TAB_MARKET], m_page == Page::Market);
+    RenderButton(m_abtn[BTN_TAB_LEDGER], m_page == Page::Ledger);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderItemsPage()
@@ -1365,6 +1529,131 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     RenderButton(m_abtn[BTN_MINE], m_ownOffersOnly);
 }
 
+void SEASON3B::CNewUIBankWindow::RenderLedgerPage()
+{
+    wchar_t szText[256] = {0};
+    wchar_t szAmount[64] = {0};
+    wchar_t szTime[32] = {0};
+
+    const int timeColumn = m_Pos.x + m_layout.ledgerTimeX;
+    const int typeColumn = m_Pos.x + m_layout.ledgerTypeX;
+    const int detailColumn = m_Pos.x + m_layout.ledgerDetailX;
+    const int amountColumn = m_Pos.x + m_layout.ledgerAmountRight - m_layout.ledgerAmountWidth;
+    const int timeWidth = m_layout.ledgerTypeX - m_layout.ledgerTimeX;
+    const int typeWidth = m_layout.ledgerDetailX - m_layout.ledgerTypeX;
+
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetTextColor(143, 184, 232, 255);
+    g_pRenderText->RenderText(timeColumn, m_Pos.y + m_layout.ledgerHeaderTop, I18N::Game::BankTimeColumn, timeWidth, 0);
+    g_pRenderText->RenderText(typeColumn, m_Pos.y + m_layout.ledgerHeaderTop, I18N::Game::BankTypeColumn, typeWidth, 0);
+    g_pRenderText->RenderText(detailColumn, m_Pos.y + m_layout.ledgerHeaderTop, I18N::Game::BankDetailColumn,
+                              m_layout.ledgerDetailWidth, 0);
+    g_pRenderText->RenderText(amountColumn, m_Pos.y + m_layout.ledgerHeaderTop, I18N::Game::BankAmountColumn,
+                              m_layout.ledgerAmountWidth, 0, RT3_SORT_RIGHT);
+
+    RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(m_Pos.y + m_layout.ledgerHeaderTop + 16),
+                        static_cast<float>(m_layout.width - 32), 1.f, HEADING_LINE_COLOR);
+    EndRenderColor();
+
+    const auto& entries = Net::Bank::Store::Instance().GetLedger();
+    g_pRenderText->SetFont(g_hFont);
+
+    if (entries.empty())
+    {
+        g_pRenderText->SetTextColor(180, 180, 180, 255);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.ledgerRowsTop + 60,
+                                  I18N::Game::BankHasNoLedgerEntries, m_layout.width - 40, 0, RT3_SORT_CENTER);
+    }
+
+    const int rows = std::min(static_cast<int>(entries.size()), m_layout.ledgerRows);
+    for (int row = 0; row < rows; ++row)
+    {
+        const Net::Bank::LedgerEntry& entry = entries[row];
+        const int top = GetLedgerRowTop(row);
+        const bool picked = row == m_selectedLedgerRow;
+
+        if (picked)
+        {
+            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top),
+                                static_cast<float>(m_layout.width - 32), static_cast<float>(m_layout.listLineHeight),
+                                PICKED_FILL_COLOR);
+            RenderBorder(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight, PICKED_EDGE_COLOR, 1);
+            EndRenderColor();
+            g_pRenderText->SetTextColor(255, 233, 168, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(220, 214, 200, 255);
+        }
+
+        FormatLedgerTime(entry.Timestamp, szTime, std::size(szTime));
+        g_pRenderText->RenderText(timeColumn, top + 4, szTime, timeWidth, 0);
+        g_pRenderText->RenderText(typeColumn, top + 4, GetLedgerTypeName(entry.Type), typeWidth, 0);
+
+        const wchar_t* detail = GetLedgerDetail(entry);
+        g_pRenderText->RenderText(detailColumn, top + 4, *detail != L'\0' ? detail : NOTHING_BOOKED,
+                                  m_layout.ledgerDetailWidth, 0);
+
+        // A movement of items books no amount: the server writes a zero and leaves the currency at
+        // zen, so a "0 Zen" drawn here would be a number nobody booked.
+        if (entry.Amount == 0)
+        {
+            g_pRenderText->SetTextColor(170, 165, 155, 255);
+            g_pRenderText->RenderText(amountColumn, top + 4, NOTHING_BOOKED, m_layout.ledgerAmountWidth, 0,
+                                      RT3_SORT_RIGHT);
+            continue;
+        }
+
+        if (entry.Amount > 0)
+        {
+            g_pRenderText->SetTextColor(126, 206, 134, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(226, 124, 112, 255);
+        }
+
+        FormatAmount(entry.Amount, szAmount, std::size(szAmount));
+        mu_swprintf(szText, L"%ls%ls %ls", entry.Amount > 0 ? L"+" : L"", szAmount,
+                    GetCurrencyShortName(entry.EntryCurrency));
+        g_pRenderText->RenderText(amountColumn, top + 4, szText, m_layout.ledgerAmountWidth, 0, RT3_SORT_RIGHT);
+    }
+
+    // What the picked row holds, in full: a description of sixty letters never fits its column, and
+    // the balance belongs beside it rather than in a fifth column nothing would have room for.
+    if (m_selectedLedgerRow >= 0 && m_selectedLedgerRow < rows)
+    {
+        const Net::Bank::LedgerEntry& entry = entries[m_selectedLedgerRow];
+        const wchar_t* detail = GetLedgerDetail(entry);
+
+        g_pRenderText->SetTextColor(200, 194, 180, 255);
+        if (*detail != L'\0')
+        {
+            g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.infoRowTop, detail, m_layout.width / 2 - 24, 0);
+        }
+
+        if (entry.Amount != 0)
+        {
+            FormatAmount(entry.BalanceAfter, szAmount, std::size(szAmount));
+            mu_swprintf(szText, I18N::Game::BankBalanceAfter, szAmount, GetCurrencyShortName(entry.EntryCurrency));
+            g_pRenderText->RenderText(m_Pos.x + m_layout.width / 2, m_Pos.y + m_layout.infoRowTop, szText,
+                                      m_layout.width / 2 - 20, 0, RT3_SORT_RIGHT);
+        }
+    }
+
+    // The server sends no count of pages, so the number stands alone instead of promising a total
+    // the client would have to invent.
+    g_pRenderText->SetTextColor(200, 194, 180, 255);
+    mu_swprintf(szText, I18N::Game::BankPageNumber, Net::Bank::Store::Instance().GetLedgerPage() + 1);
+    g_pRenderText->RenderText(m_Pos.x + m_layout.prevButton.right, m_Pos.y + m_layout.pageRowTop + 3, szText,
+                              m_layout.nextButton.left - m_layout.prevButton.right, 0, RT3_SORT_CENTER);
+
+    RenderButton(m_abtn[BTN_PREV], false);
+    RenderButton(m_abtn[BTN_NEXT], false);
+    RenderButton(m_abtn[BTN_LEDGER_REFRESH], false);
+}
+
 void SEASON3B::CNewUIBankWindow::RenderPriceCurrencyRow()
 {
     wchar_t szText[128] = {0};
@@ -1484,4 +1773,103 @@ const wchar_t* SEASON3B::CNewUIBankWindow::GetCurrencyName(Net::Bank::Currency c
     default:
         return L"";
     }
+}
+
+const wchar_t* SEASON3B::CNewUIBankWindow::GetCurrencyShortName(Net::Bank::Currency currency)
+{
+    // A ledger row names its currency beside the amount, where the full name of a jewel would push
+    // the digits out of the column.
+    switch (currency)
+    {
+    case Net::Bank::Currency::Zen:
+        return I18N::Game::BankCurrencyShortZen;
+    case Net::Bank::Currency::WCoinC:
+        return I18N::Game::BankCurrencyShortWcoinC;
+    case Net::Bank::Currency::WCoinP:
+        return I18N::Game::BankCurrencyShortWcoinP;
+    case Net::Bank::Currency::GoblinPoints:
+        return I18N::Game::BankCurrencyShortGoblinPoints;
+    case Net::Bank::Currency::JewelOfBless:
+        return I18N::Game::BankCurrencyShortJewelOfBless;
+    case Net::Bank::Currency::JewelOfSoul:
+        return I18N::Game::BankCurrencyShortJewelOfSoul;
+    case Net::Bank::Currency::JewelOfLife:
+        return I18N::Game::BankCurrencyShortJewelOfLife;
+    case Net::Bank::Currency::JewelOfCreation:
+        return I18N::Game::BankCurrencyShortJewelOfCreation;
+    case Net::Bank::Currency::JewelOfChaos:
+        return I18N::Game::BankCurrencyShortJewelOfChaos;
+    default:
+        return L"";
+    }
+}
+
+const wchar_t* SEASON3B::CNewUIBankWindow::GetLedgerTypeName(Net::Bank::LedgerEntryType type)
+{
+    switch (type)
+    {
+    case Net::Bank::LedgerEntryType::Deposit:
+        return I18N::Game::BankLedgerDeposit;
+    case Net::Bank::LedgerEntryType::Withdrawal:
+        return I18N::Game::BankLedgerWithdrawal;
+    case Net::Bank::LedgerEntryType::TransferOut:
+        return I18N::Game::BankLedgerTransferOut;
+    case Net::Bank::LedgerEntryType::TransferIn:
+        return I18N::Game::BankLedgerTransferIn;
+    case Net::Bank::LedgerEntryType::Fee:
+        return I18N::Game::BankLedgerFee;
+    case Net::Bank::LedgerEntryType::MarketListed:
+        return I18N::Game::BankLedgerMarketListed;
+    case Net::Bank::LedgerEntryType::MarketSale:
+        return I18N::Game::BankLedgerMarketSale;
+    case Net::Bank::LedgerEntryType::MarketPurchase:
+        return I18N::Game::BankLedgerMarketPurchase;
+    case Net::Bank::LedgerEntryType::MarketReturn:
+        return I18N::Game::BankLedgerMarketReturn;
+    case Net::Bank::LedgerEntryType::Correction:
+        return I18N::Game::BankLedgerCorrection;
+    default:
+        return L"";
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::FormatLedgerTime(int64_t timestamp, wchar_t* text, size_t textLength)
+{
+    if (text == nullptr || textLength == 0)
+    {
+        return;
+    }
+
+    text[0] = L'\0';
+
+    const std::time_t seconds = static_cast<std::time_t>(timestamp);
+    std::tm local{};
+#ifdef _WIN32
+    if (localtime_s(&local, &seconds) != 0)
+    {
+        return;
+    }
+#else
+    if (localtime_r(&seconds, &local) == nullptr)
+    {
+        return;
+    }
+#endif
+
+    if (std::wcsftime(text, textLength, L"%d/%m %H:%M", &local) == 0)
+    {
+        text[0] = L'\0';
+    }
+}
+
+const wchar_t* SEASON3B::CNewUIBankWindow::GetLedgerDetail(const Net::Bank::LedgerEntry& entry)
+{
+    // What moved is worth more than who moved it, so a description wins when the entry has both -
+    // a sale names the item in the row and the buyer below it.
+    if (!entry.Description.empty())
+    {
+        return entry.Description.c_str();
+    }
+
+    return entry.CounterpartyName.c_str();
 }

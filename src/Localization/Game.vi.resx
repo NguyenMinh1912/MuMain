@@ -13146,4 +13146,88 @@
   <data name="Bank own offer" xml:space="preserve">
     <value>Đây là món do chính bạn rao bán</value>
   </data>
+  <data name="Bank ledger" xml:space="preserve">
+    <value>Lịch sử</value>
+  </data>
+  <data name="Bank time column" xml:space="preserve">
+    <value>Thời gian</value>
+  </data>
+  <data name="Bank type column" xml:space="preserve">
+    <value>Loại</value>
+  </data>
+  <data name="Bank detail column" xml:space="preserve">
+    <value>Chi tiết</value>
+  </data>
+  <data name="Bank amount column" xml:space="preserve">
+    <value>Số tiền</value>
+  </data>
+  <data name="Bank has no ledger entries" xml:space="preserve">
+    <value>Ngân hàng chưa ghi giao dịch nào</value>
+  </data>
+  <data name="Bank balance after" xml:space="preserve">
+    <value>Số dư sau: %ls %ls</value>
+  </data>
+  <data name="Bank page number" xml:space="preserve">
+    <value>Trang %d</value>
+  </data>
+  <data name="Bank refresh" xml:space="preserve">
+    <value>Làm mới</value>
+  </data>
+  <data name="Bank ledger deposit" xml:space="preserve">
+    <value>Gửi vào</value>
+  </data>
+  <data name="Bank ledger withdrawal" xml:space="preserve">
+    <value>Rút ra</value>
+  </data>
+  <data name="Bank ledger transfer out" xml:space="preserve">
+    <value>Chuyển đi</value>
+  </data>
+  <data name="Bank ledger transfer in" xml:space="preserve">
+    <value>Nhận về</value>
+  </data>
+  <data name="Bank ledger fee" xml:space="preserve">
+    <value>Phí</value>
+  </data>
+  <data name="Bank ledger market listed" xml:space="preserve">
+    <value>Rao bán</value>
+  </data>
+  <data name="Bank ledger market sale" xml:space="preserve">
+    <value>Bán được</value>
+  </data>
+  <data name="Bank ledger market purchase" xml:space="preserve">
+    <value>Mua ở chợ</value>
+  </data>
+  <data name="Bank ledger market return" xml:space="preserve">
+    <value>Hoàn trả</value>
+  </data>
+  <data name="Bank ledger correction" xml:space="preserve">
+    <value>Điều chỉnh</value>
+  </data>
+  <data name="Bank currency short zen" xml:space="preserve">
+    <value>Zen</value>
+  </data>
+  <data name="Bank currency short wcoin c" xml:space="preserve">
+    <value>WC-C</value>
+  </data>
+  <data name="Bank currency short wcoin p" xml:space="preserve">
+    <value>WC-P</value>
+  </data>
+  <data name="Bank currency short goblin points" xml:space="preserve">
+    <value>GP</value>
+  </data>
+  <data name="Bank currency short jewel of bless" xml:space="preserve">
+    <value>Phúc Lành</value>
+  </data>
+  <data name="Bank currency short jewel of soul" xml:space="preserve">
+    <value>Tâm Linh</value>
+  </data>
+  <data name="Bank currency short jewel of life" xml:space="preserve">
+    <value>Sinh Mệnh</value>
+  </data>
+  <data name="Bank currency short jewel of creation" xml:space="preserve">
+    <value>Sáng Tạo</value>
+  </data>
+  <data name="Bank currency short jewel of chaos" xml:space="preserve">
+    <value>Hỗn Nguyên</value>
+  </data>
 </root>

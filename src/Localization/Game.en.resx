@@ -13138,4 +13138,88 @@
   <data name="Bank own offer" xml:space="preserve">
     <value>That offer is your own</value>
   </data>
+  <data name="Bank ledger" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="Bank time column" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Bank type column" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Bank detail column" xml:space="preserve">
+    <value>Detail</value>
+  </data>
+  <data name="Bank amount column" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="Bank has no ledger entries" xml:space="preserve">
+    <value>The bank has booked nothing yet</value>
+  </data>
+  <data name="Bank balance after" xml:space="preserve">
+    <value>Balance after: %ls %ls</value>
+  </data>
+  <data name="Bank page number" xml:space="preserve">
+    <value>Page %d</value>
+  </data>
+  <data name="Bank refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Bank ledger deposit" xml:space="preserve">
+    <value>Deposit</value>
+  </data>
+  <data name="Bank ledger withdrawal" xml:space="preserve">
+    <value>Withdrawal</value>
+  </data>
+  <data name="Bank ledger transfer out" xml:space="preserve">
+    <value>Sent</value>
+  </data>
+  <data name="Bank ledger transfer in" xml:space="preserve">
+    <value>Received</value>
+  </data>
+  <data name="Bank ledger fee" xml:space="preserve">
+    <value>Fee</value>
+  </data>
+  <data name="Bank ledger market listed" xml:space="preserve">
+    <value>Listed</value>
+  </data>
+  <data name="Bank ledger market sale" xml:space="preserve">
+    <value>Sold</value>
+  </data>
+  <data name="Bank ledger market purchase" xml:space="preserve">
+    <value>Bought</value>
+  </data>
+  <data name="Bank ledger market return" xml:space="preserve">
+    <value>Returned</value>
+  </data>
+  <data name="Bank ledger correction" xml:space="preserve">
+    <value>Correction</value>
+  </data>
+  <data name="Bank currency short zen" xml:space="preserve">
+    <value>Zen</value>
+  </data>
+  <data name="Bank currency short wcoin c" xml:space="preserve">
+    <value>WC-C</value>
+  </data>
+  <data name="Bank currency short wcoin p" xml:space="preserve">
+    <value>WC-P</value>
+  </data>
+  <data name="Bank currency short goblin points" xml:space="preserve">
+    <value>GP</value>
+  </data>
+  <data name="Bank currency short jewel of bless" xml:space="preserve">
+    <value>Bless</value>
+  </data>
+  <data name="Bank currency short jewel of soul" xml:space="preserve">
+    <value>Soul</value>
+  </data>
+  <data name="Bank currency short jewel of life" xml:space="preserve">
+    <value>Life</value>
+  </data>
+  <data name="Bank currency short jewel of creation" xml:space="preserve">
+    <value>Creation</value>
+  </data>
+  <data name="Bank currency short jewel of chaos" xml:space="preserve">
+    <value>Chaos</value>
+  </data>
 </root>

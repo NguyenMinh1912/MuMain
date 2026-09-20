@@ -51,6 +51,40 @@ its seller; click one to select it.
 What an offer holds has already left the seller's bank, so a seller can be offline - the deal does
 not need him. What is bought arrives in the bank, not in the inventory.
 
+## The history page
+
+**History** shows what the bank booked, newest first, ten to a page. Every movement of value writes
+one entry, so a player - and a game master looking for a duplication exploit - can read where a
+value came from and where it went.
+
+| Column | What it shows |
+|---|---|
+| **Time** | When it was booked, in the time of this machine |
+| **Type** | Why it was booked: a deposit, a fee, a sale, a returned offer, a correction |
+| **Detail** | What moved - the name of an item, or who the other side was |
+| **Amount** | How much, green when the bank gained it and red when it lost it |
+
+Click an entry to read it in full underneath: a description is cut to fit its column but not there,
+and the balance which followed the movement is written beside it.
+
+A movement of **items** books no amount - the entry names the item and its amount column stays
+empty - so no balance is claimed for it either.
+
+| Button | What it does |
+|---|---|
+| **Prev** / **Next** | Turns the page |
+| **Refresh** | Asks for the shown page again |
+
+The server sends no count of pages and no page size, so the window counts the page it is on rather
+than promising a total it would have to invent. The end is found by turning past it once: the
+window sees the empty page and goes straight back to the last one, so nobody is left looking at
+nothing, and **Next** stops offering itself from then on. Asking for the first page again forgets
+the end, because a bank which has booked something since has a new one.
+
+The history is asked for when the tab is opened and not before, so a bank which nobody looks at
+costs the database nothing. Any successful request made while it is open refreshes it, because
+every one of them books an entry.
+
 ## Jewels are counted
 
 A jewel put into the bank is consumed and counted; taking one out creates the item again. A

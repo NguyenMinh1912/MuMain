@@ -13258,6 +13258,42 @@
   <data name="Bank currency short jewel of chaos" xml:space="preserve">
     <value>Chaos</value>
   </data>
+  <data name="Bank deposit title" xml:space="preserve">
+    <value>DEPOSIT %s</value>
+  </data>
+  <data name="Bank withdraw title" xml:space="preserve">
+    <value>WITHDRAW %s</value>
+  </data>
+  <data name="Bank offer title" xml:space="preserve">
+    <value>OFFER %s</value>
+  </data>
+  <data name="Bank available amount" xml:space="preserve">
+    <value>Available</value>
+  </data>
+  <data name="Bank amount in the bank" xml:space="preserve">
+    <value>In the bank</value>
+  </data>
+  <data name="Bank free inventory slots" xml:space="preserve">
+    <value>Free slots</value>
+  </data>
+  <data name="Bank movable at most" xml:space="preserve">
+    <value>At most</value>
+  </data>
+  <data name="Bank maximum amount button" xml:space="preserve">
+    <value>MAX</value>
+  </data>
+  <data name="Bank amount label" xml:space="preserve">
+    <value>AMOUNT</value>
+  </data>
+  <data name="Bank preset is capped" xml:space="preserve">
+    <value>Picking more than is available fills in what is available.</value>
+  </data>
+  <data name="Bank preset millions" xml:space="preserve">
+    <value>%dM</value>
+  </data>
+  <data name="Bank preset billions" xml:space="preserve">
+    <value>%dB</value>
+  </data>
   <data name="Menu" xml:space="preserve">
     <value>Menu</value>
   </data>

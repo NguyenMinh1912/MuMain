@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Network/Server/BankProtocol.h"
+#include "UI/NewUI/Inventory/BankCurrencyInfo.h"
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
 #include "UI/NewUI/Inventory/Market/SetCatalog.h"
 #include "UI/NewUI/Inventory/NewUIInventoryCtrl.h"
@@ -128,6 +129,9 @@ public:
     /// the values. The dialog which asks for a price says it, so the player is not left guessing.
     /// </summary>
     const wchar_t* GetPriceCurrencyName() const;
+
+    /// <summary>Gets what the dialog which asks for an amount is about.</summary>
+    BankUI::AmountRequest GetAmountInputContext() const;
 
 private:
     /// <summary>Which of the three tabs the window is showing.</summary>
@@ -268,6 +272,28 @@ private:
         RECT button[3];
 
         int listLineHeight;
+
+        /// <summary>
+        /// How tall one row of the tab of the values is.
+        /// </summary>
+        /// <remarks>
+        /// Taller than a row of the ledger, because a row here carries the picture of what it
+        /// counts and a picture of eighteen pixels is a smudge. The room comes from the tab of the
+        /// values reaching down to the row which says what a price is named in: the rows which
+        /// stop the other tabs short - the number of the page and what is picked - belong to the
+        /// tab of the items and say nothing here.
+        /// </remarks>
+        int valueLineHeight;
+
+        /// <summary>How far down the list of the values may reach.</summary>
+        int valueListBottom;
+
+        /// <summary>How large the picture beside a currency is drawn.</summary>
+        int valueIconSize;
+
+        /// <summary>How far under the top of its row the text of a currency sits.</summary>
+        int valueTextTop;
+
         int moneyHeaderTop;
         int moneyRowsTop;
         int jewelHeaderTop;
@@ -357,14 +383,36 @@ private:
     /// <summary>Draws the pictures of the items which are in the boxes of the bank.</summary>
     void RenderStorageItems3D();
 
+    /// <summary>
+    /// Draws the picture of the jewel beside every row of jewels on the tab of the values.
+    /// </summary>
+    /// <remarks>
+    /// A jewel is an item, and the picture of an item is drawn in the 3d pass like every other
+    /// one. The coins of the currencies which are plain numbers are pictures of their own and are
+    /// drawn with the rest of the page.
+    /// </remarks>
+    void RenderValueIcons3D();
+
     /// <summary>Draws the pictures of the items which are offered on the listed page.</summary>
     void RenderOfferItems3D();
 
     /// <summary>Draws the plate a box stands on: the fill inside its line, and the line.</summary>
     static void RenderTilePlate(const RECT& rect, unsigned int fill);
 
+    /// <summary>Draws the coin which stands beside a currency that is a plain number.</summary>
+    /// <remarks>
+    /// Out of quads, like the rest of this window, because the client has no picture of a coin -
+    /// see <see cref="BankUI::GetCoinColors"/>.
+    /// </remarks>
+    static void RenderCurrencyCoin(const RECT& rect, Net::Bank::Currency currency);
+
     /// <summary>Draws the picture of an item as large as it fits into the box it stands in.</summary>
-    static void RenderItemPicture(const ITEM& item, int left, int top, int width, int height);
+    /// <param name="margin">
+    /// How much of the box stays bare around the picture. A box of a storage leaves room for the
+    /// edge it is drawn with; the picture beside the name of a currency has no edge and fills its
+    /// whole square, so the margin is given by the caller rather than fixed here.
+    /// </param>
+    static void RenderItemPicture(const ITEM& item, int left, int top, int width, int height, int margin);
 
     /// <summary>Draws the row which says, and lets the player change, what a price is named in.</summary>
     void RenderPriceCurrencyRow();
@@ -392,6 +440,9 @@ private:
 
     /// <summary>Gets where the row of a currency is drawn, which is also where it is clicked.</summary>
     int GetCurrencyRowTop(int currency) const;
+
+    /// <summary>Gets where the picture of a currency is drawn, in screen coordinates.</summary>
+    void GetCurrencyIconRect(int currency, RECT& rect) const;
 
     /// <summary>Gets where a box of the market is drawn, which is also where it is clicked.</summary>
     void GetOfferTileRect(int tile, RECT& rect) const;

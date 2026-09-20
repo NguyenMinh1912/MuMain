@@ -6,6 +6,10 @@
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
 #include "UI/NewUI/Dialogs/NewUICommonMessageBox.h"
 #include "UI/Legacy/UIControls.h"
+#include "UI/NewUI/Inventory/BankCurrencyInfo.h"
+
+#include <string>
+#include <vector>
 
 namespace SEASON3B
 {
@@ -1096,14 +1100,104 @@ namespace SEASON3B
     };
 
     /// <summary>
+    /// The dialog which asks how much of a currency moves, with the amounts worth naming already
+    /// on its buttons.
+    /// </summary>
+    /// <remarks>
+    /// A player who wants to bank a hundred million zen typed nine digits into a box before this,
+    /// and a typo cost him a fortune or an error message. The buttons name the amounts he actually
+    /// moves, and every one of them is cut down to what may really move, so a button can be pressed
+    /// without first working out what is left in the wallet or in the bag.
+    ///
+    /// It draws its own panel out of plain quads rather than the strips of the common message box,
+    /// for the reason the bank window itself does: those strips are cut for a box of one width and
+    /// leave a wider one half bare.
+    /// </remarks>
+    class CNewUIBankAmountMsgBox : public CNewUIMessageBoxBase
+    {
+    public:
+        CNewUIBankAmountMsgBox();
+        ~CNewUIBankAmountMsgBox() override;
+
+        /// <summary>Builds the dialog for what the bank window says is being moved.</summary>
+        bool Create(const BankUI::AmountRequest& request);
+        void Release();
+
+        bool Update() override;
+        bool Render() override;
+
+        /// <summary>
+        /// Gets what was typed, cut down to what may move; zero when nothing usable was typed.
+        /// </summary>
+        int64_t GetAmount() const;
+
+        static CALLBACK_RESULT LButtonUp(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+
+    private:
+        /// <summary>One of the lines above the box which say what there is to move.</summary>
+        struct InfoLine
+        {
+            std::wstring Label;
+            int64_t Value;
+
+            /// <summary>Whether the line is the one the player is really deciding against.</summary>
+            bool Highlighted;
+        };
+
+        /// <summary>One of the amounts which are offered at a click.</summary>
+        struct PresetButton
+        {
+            RECT Rect;
+            std::wstring Caption;
+
+            /// <summary>What it fills in, which is the offered amount cut down to the limit.</summary>
+            int64_t Amount;
+
+            /// <summary>Whether the amount it names is above the limit and was cut down.</summary>
+            bool Capped;
+        };
+
+        void BuildInfoLines();
+        void BuildPresets();
+        void PlaceEverything();
+        void WriteAmount(int64_t amount);
+
+        void RenderFrame();
+        void RenderTitle();
+        void RenderInfoLines();
+        void RenderPresets();
+        void RenderActionButtons();
+
+        /// <summary>Draws the plate of a button of this dialog, in the state the cursor puts it in.</summary>
+        static void RenderPlate(const RECT& rect, bool hovered, bool highlighted, bool dimmed);
+
+        /// <summary>Gets whether the cursor stands inside a rectangle of this dialog.</summary>
+        static bool IsCursorIn(const RECT& rect);
+
+        BankUI::AmountRequest m_request;
+        CUITextInputBox* m_pInputBox;
+
+        std::wstring m_title;
+        std::vector<InfoLine> m_infoLines;
+        std::vector<PresetButton> m_presets;
+
+        /// <summary>The button which fills in the whole limit; empty when there is no limit to fill.</summary>
+        RECT m_maxButton;
+        bool m_hasMaxButton;
+
+        RECT m_inputRect;
+        RECT m_okButton;
+        RECT m_cancelButton;
+
+        int m_hintTop;
+        int m_footerLineTop;
+    };
+
+    /// <summary>
     /// Asks how much of a currency goes into the bank or comes out of it.
     /// </summary>
-    class CBankAmountMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
+    class CBankAmountMsgBoxLayout : public TMsgBoxLayout<CNewUIBankAmountMsgBox>
     {
-        static constexpr float INPUT_WIDTH = 110.0f;
-        static constexpr float INPUT_HEIGHT = 14.0f;
-        static constexpr int INPUT_TEXTLIMIT = 18;
-
     public:
         bool SetLayout();
         static CALLBACK_RESULT ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);

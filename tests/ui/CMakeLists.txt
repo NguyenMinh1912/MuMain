@@ -47,6 +47,12 @@ mu_add_test(
 )
 
 mu_add_test(
+    NAME bank_currency_info_tests
+    SOURCES test_bank_currency_info.cpp
+    LINK_LIBS MuClient
+)
+
+mu_add_test(
     NAME ui_scaling_tests
     SOURCES
         test_ui_scaling.cpp

@@ -194,12 +194,18 @@ void RenderBorder(int x, int y, int width, int height, unsigned int color, int t
 /// <summary>Writes an amount with a separator every three digits, which is how balances are read.</summary>
 void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 {
+    // The magnitude is taken as an unsigned number on purpose: negating the smallest int64 does
+    // not fit back into an int64, which is undefined behaviour rather than a large positive value.
+    const bool negative = amount < 0;
+    const unsigned long long magnitude =
+        negative ? 0ULL - static_cast<unsigned long long>(amount) : static_cast<unsigned long long>(amount);
+
     wchar_t digits[32] = {0};
-    mu_swprintf(digits, L"%lld", static_cast<long long>(amount < 0 ? -amount : amount));
+    mu_swprintf(digits, L"%llu", magnitude);
 
     const size_t digitCount = wcslen(digits);
     size_t written = 0;
-    if (amount < 0 && written + 1 < textLength)
+    if (negative && written + 1 < textLength)
     {
         text[written++] = L'-';
     }

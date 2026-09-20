@@ -49,6 +49,17 @@ public:
         return m_offerPageCount;
     }
 
+    /// <summary>Gets how often the listed page of the market has been replaced.</summary>
+    /// <remarks>
+    /// The dialog keeps an item of its own for every offer so that it can draw its picture, and it
+    /// has to build those again whenever another page arrives. Comparing this number is what tells
+    /// it that one did, without the parser having to reach into the dialog.
+    /// </remarks>
+    unsigned int GetOfferGeneration() const
+    {
+        return m_offerGeneration;
+    }
+
     /// <summary>Replaces the listed page of the ledger.</summary>
     void SetLedger(std::vector<LedgerEntry> entries, BYTE page);
 
@@ -100,6 +111,7 @@ private:
     std::vector<LedgerEntry> m_ledger;
     BYTE m_offerPage = 0;
     BYTE m_offerPageCount = 1;
+    unsigned int m_offerGeneration = 0;
     BYTE m_ledgerPage = 0;
     Operation m_lastOperation = Operation::Deposit;
     ResultCode m_lastResult = ResultCode::Success;

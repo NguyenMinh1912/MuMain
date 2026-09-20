@@ -35,6 +35,7 @@ void Store::SetOffers(std::vector<Offer> offers, const BYTE page, const BYTE pag
     m_offers = std::move(offers);
     m_offerPage = page;
     m_offerPageCount = pageCount > 0 ? pageCount : 1;
+    ++m_offerGeneration;
 }
 
 void Store::SetLedger(std::vector<LedgerEntry> entries, const BYTE page)
@@ -70,6 +71,7 @@ void Store::Clear()
     m_ledger.clear();
     m_offerPage = 0;
     m_offerPageCount = 1;
+    ++m_offerGeneration;
     m_ledgerPage = 0;
     m_lastOperation = Operation::Deposit;
     m_lastResult = ResultCode::Success;

@@ -13086,6 +13086,9 @@
   <data name="Bank item column" xml:space="preserve">
     <value>Món hàng</value>
   </data>
+  <data name="Bank billions suffix" xml:space="preserve">
+    <value> Tỷ</value>
+  </data>
   <data name="Bank price column" xml:space="preserve">
     <value>Giá</value>
   </data>

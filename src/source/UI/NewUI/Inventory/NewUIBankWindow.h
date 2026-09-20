@@ -149,6 +149,7 @@ private:
     enum RENDER_KIND
     {
         RENDER_ITEM_TOOLTIP = 1,
+        RENDER_OFFER_TOOLTIP = 2,
     };
 
     enum BANK_BUTTON
@@ -174,8 +175,8 @@ private:
     };
 
     /// <summary>The size of the window. Everything else follows from it.</summary>
-    static constexpr int BANK_WIDTH = 380;
-    static constexpr int BANK_HEIGHT = 448;
+    static constexpr int BANK_WIDTH = 440;
+    static constexpr int BANK_HEIGHT = 470;
 
     /// <summary>
     /// Where every part of the window stands, in window coordinates.
@@ -218,9 +219,19 @@ private:
         int moneyRowsTop;
         int jewelHeaderTop;
         int jewelRowsTop;
-        int marketHeaderTop;
-        int marketRowsTop;
-        int marketRows;
+        /// <summary>
+        /// The boxes of the market. They are wider and taller than the boxes of the storage,
+        /// because under the picture of an offer stands what it costs.
+        /// </summary>
+        int marketFilterRowTop;
+        int marketTileWidth;
+        int marketTileHeight;
+        int marketPictureHeight;
+        int marketTileColumns;
+        int marketTileRows;
+        int marketTileOriginX;
+        int marketTileOriginY;
+        int marketTilesPerPage;
 
         int ledgerHeaderTop;
         int ledgerRowsTop;
@@ -253,6 +264,30 @@ private:
     void RenderLedgerPage();
     void RenderHoveredItemInfo();
 
+    /// <summary>Draws the box every offer of the listed page stands in.</summary>
+    void RenderOfferTilePlates();
+
+    /// <summary>Writes under every offer of the listed page what it costs.</summary>
+    void RenderOfferTilePrices();
+
+    /// <summary>Writes what the picked offer is, who sells it and what it costs exactly.</summary>
+    void RenderSelectedOfferDetail();
+
+    /// <summary>Draws the tooltip of the offer the cursor is over.</summary>
+    void RenderHoveredOfferInfo();
+
+    /// <summary>Draws the pictures of the items which are in the boxes of the bank.</summary>
+    void RenderStorageItems3D();
+
+    /// <summary>Draws the pictures of the items which are offered on the listed page.</summary>
+    void RenderOfferItems3D();
+
+    /// <summary>Draws the plate a box stands on: the fill inside its line, and the line.</summary>
+    static void RenderTilePlate(const RECT& rect, unsigned int fill);
+
+    /// <summary>Draws the picture of an item as large as it fits into the box it stands in.</summary>
+    static void RenderItemPicture(const ITEM& item, int left, int top, int width, int height);
+
     /// <summary>Draws the row which says, and lets the player change, what a price is named in.</summary>
     void RenderPriceCurrencyRow();
 
@@ -280,8 +315,14 @@ private:
     /// <summary>Gets where the row of a currency is drawn, which is also where it is clicked.</summary>
     int GetCurrencyRowTop(int currency) const;
 
-    /// <summary>Gets where a row of the market is drawn, which is also where it is clicked.</summary>
-    int GetOfferRowTop(int row) const;
+    /// <summary>Gets where a box of the market is drawn, which is also where it is clicked.</summary>
+    void GetOfferTileRect(int tile, RECT& rect) const;
+
+    /// <summary>Gets the box of the market the cursor is over, or -1 when it is over none.</summary>
+    int GetOfferTileAtCursor() const;
+
+    /// <summary>Gets how many boxes of the market the listed page fills.</summary>
+    int GetShownOfferCount() const;
 
     /// <summary>Gets where a row of the ledger is drawn, which is also where it is clicked.</summary>
     int GetLedgerRowTop(int row) const;
@@ -297,6 +338,15 @@ private:
 
     void BuySelectedOffer();
     void CancelSelectedOffer();
+
+    /// <summary>Builds an item for every offer of the listed page, so its picture can be drawn.</summary>
+    void RebuildOfferItems();
+
+    /// <summary>Gives the items of the listed offers back to the item manager.</summary>
+    void ClearOfferItems();
+
+    /// <summary>Gets whether an offer was made by the character which is playing.</summary>
+    static bool IsOwnOffer(const Net::Bank::Offer& offer);
 
     /// <summary>Gets the name of a currency as it is listed.</summary>
     static const wchar_t* GetCurrencyName(Net::Bank::Currency currency);
@@ -382,6 +432,20 @@ private:
 
     /// <summary>The box of the bank an item is leaving, while that move is on its way.</summary>
     int m_takeSourceSlot;
+
+    /// <summary>
+    /// An item for every offer of the listed page, in the order the offers arrived; null where an
+    /// offer carries a currency rather than an item.
+    /// </summary>
+    /// <remarks>
+    /// An offer carries its item in the shape it has in the inventory, and a picture is drawn from
+    /// an <c>ITEM</c> like every other one. They are built once per page and not per frame, which
+    /// is what <see cref="Net::Bank::Store::GetOfferGeneration"/> is compared for.
+    /// </remarks>
+    std::vector<ITEM*> m_offerItems;
+
+    /// <summary>Which page of the market the items were built for.</summary>
+    unsigned int m_offerGeneration;
 
     /// <summary>Whether only the offers of this account are listed on the market tab.</summary>
     bool m_ownOffersOnly;

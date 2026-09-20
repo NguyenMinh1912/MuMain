@@ -7,6 +7,7 @@
 #include "UI/NewUI/Inventory/NewUIBankWindow.h"
 
 #include "Audio/DSPlaySound.h"
+#include "Engine/Object/ZzzCharacter.h"
 #include "Engine/Object/ZzzInventory.h"
 #include "I18N/All.h"
 #include "Network/Server/BankStore.h"
@@ -50,6 +51,27 @@ constexpr unsigned int BUTTON_EDGE_ON_COLOR = 0xFFFFC83Cu;
 
 /// <summary>The line which separates a heading from the rows under it.</summary>
 constexpr unsigned int HEADING_LINE_COLOR = 0x804A5566u;
+
+/// <summary>The edge of a box which holds an offer the player made himself.</summary>
+constexpr unsigned int OWN_OFFER_EDGE_COLOR = 0xFF6FA8DCu;
+
+/// <summary>How far apart the two lines under the picture of an offer stand.</summary>
+constexpr int PRICE_LINE_HEIGHT = 13;
+
+/// <summary>How much of a box stays bare around the picture in it.</summary>
+constexpr int PICTURE_MARGIN = 10;
+
+/// <summary>One billion, which is the unit a price too long for its box is written in.</summary>
+constexpr int64_t ONE_BILLION = 1000000000;
+
+/// <summary>
+/// The first price which no longer fits into a box in full: ten digits and the dots between them
+/// are what the strip under a picture holds, and from here on the price is written in billions.
+/// </summary>
+constexpr int64_t SHORTENED_PRICE_THRESHOLD = 10 * ONE_BILLION;
+
+/// <summary>What stands between the parts of the line which describes the picked offer.</summary>
+constexpr const wchar_t* DETAIL_SEPARATOR = L"  \u00B7  ";
 
 /// <summary>How many of the currencies are money; the rest are jewels.</summary>
 constexpr int MONEY_CURRENCY_COUNT = 4;
@@ -103,13 +125,29 @@ void FormatAmount(int64_t amount, wchar_t* text, size_t textLength)
 
     text[written] = L'\0';
 }
+
+/// <summary>
+/// Writes a price so that it fits into the strip under the picture of the offer it belongs to.
+/// </summary>
+void FormatPriceForTile(int64_t amount, wchar_t* text, size_t textLength)
+{
+    const int64_t magnitude = amount < 0 ? -amount : amount;
+    if (magnitude < SHORTENED_PRICE_THRESHOLD)
+    {
+        FormatAmount(amount, text, textLength);
+        return;
+    }
+
+    mu_swprintf_s(text, textLength, L"%lld%ls", static_cast<long long>(amount / ONE_BILLION),
+                  I18N::Game::BankBillionsSuffix);
+}
 } // namespace
 
 SEASON3B::CNewUIBankWindow::CNewUIBankWindow()
     : m_pNewUIMng(nullptr), m_pNewUI3DRenderMng(nullptr), m_layout{}, m_page(Page::Items), m_itemPage(0),
       m_selectedCurrency(0), m_priceCurrency(0), m_selectedOffer(-1), m_selectedLedgerRow(-1),
-      m_ledgerRequestedPage(-1), m_ledgerLastPage(-1), m_selectedSlot(-1), m_depositSourceSlot(-1),
-      m_takeSourceSlot(-1), m_ownOffersOnly(false), m_waitingForMarketAnswer(false), m_pendingInput(PendingInput::None),
+      m_ledgerRequestedPage(-1), m_ledgerLastPage(-1), m_offerGeneration(0), m_selectedSlot(-1),
+      m_depositSourceSlot(-1), m_takeSourceSlot(-1), m_ownOffersOnly(false), m_waitingForMarketAnswer(false), m_pendingInput(PendingInput::None),
       m_offerCarriesItem(true), m_offerAmount(0)
 {
     m_Pos.x = 0;
@@ -164,6 +202,7 @@ bool SEASON3B::CNewUIBankWindow::Create(CNewUIManager* pNewUIMng, CNewUI3DRender
 void SEASON3B::CNewUIBankWindow::Release()
 {
     DeleteAllItems();
+    ClearOfferItems();
 
     if (m_pNewUI3DRenderMng)
     {
@@ -261,9 +300,22 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     layout.jewelHeaderTop = layout.moneyRowsTop + MONEY_CURRENCY_COUNT * layout.listLineHeight + 14;
     layout.jewelRowsTop = layout.jewelHeaderTop + 24;
 
-    layout.marketHeaderTop = layout.contentTop;
-    layout.marketRowsTop = layout.marketHeaderTop + 24;
-    layout.marketRows = std::max(1, (layout.contentBottom - layout.marketRowsTop) / layout.listLineHeight);
+    // The market shows its offers as boxes rather than as rows of text, because the picture of an
+    // item says more than its name - and under every picture stands what it costs.
+    constexpr int filterRowHeight = 24;
+    constexpr int tileMinWidth = 80;
+    constexpr int picturePartHeight = 60;
+    constexpr int priceStripHeight = 26;
+
+    layout.marketFilterRowTop = layout.contentTop;
+    layout.marketTileColumns = std::max(1, (layout.width - 2 * edge) / tileMinWidth);
+    layout.marketTileWidth = (layout.width - 2 * edge) / layout.marketTileColumns;
+    layout.marketPictureHeight = picturePartHeight;
+    layout.marketTileHeight = picturePartHeight + priceStripHeight;
+    layout.marketTileOriginY = layout.marketFilterRowTop + filterRowHeight + gap;
+    layout.marketTileRows = std::max(1, (layout.contentBottom - layout.marketTileOriginY) / layout.marketTileHeight);
+    layout.marketTilesPerPage = layout.marketTileColumns * layout.marketTileRows;
+    layout.marketTileOriginX = (layout.width - layout.marketTileColumns * layout.marketTileWidth) / 2;
 
     layout.ledgerHeaderTop = layout.contentTop;
     layout.ledgerRowsTop = layout.ledgerHeaderTop + 24;
@@ -355,6 +407,7 @@ void SEASON3B::CNewUIBankWindow::ClosingProcess()
     SocketClient->ToGameServer()->SendBankDialog(false);
 
     DeleteAllItems();
+    ClearOfferItems();
     m_selectedSlot = -1;
     m_selectedOffer = -1;
     m_depositSourceSlot = -1;
@@ -697,6 +750,12 @@ bool SEASON3B::CNewUIBankWindow::Update()
         return true;
     }
 
+    // Another page of the market arrived, so the items which draw its pictures are built again.
+    if (m_offerGeneration != Net::Bank::Store::Instance().GetOfferGeneration())
+    {
+        RebuildOfferItems();
+    }
+
     Net::Bank::Operation operation = Net::Bank::Operation::Deposit;
     Net::Bank::ResultCode result = Net::Bank::ResultCode::Success;
     if (Net::Bank::Store::Instance().TakeNewResult(operation, result))
@@ -937,8 +996,7 @@ bool SEASON3B::CNewUIBankWindow::ProcessButtons()
             }
             case Page::Ledger:
                 // Turning forwards stops at the end once the end has been found.
-                if (!store.GetLedger().empty() &&
-                    (m_ledgerLastPage < 0 || store.GetLedgerPage() < m_ledgerLastPage))
+                if (!store.GetLedger().empty() && (m_ledgerLastPage < 0 || store.GetLedgerPage() < m_ledgerLastPage))
                 {
                     RequestLedgerPage(static_cast<BYTE>(store.GetLedgerPage() + 1));
                 }
@@ -1103,9 +1161,38 @@ int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
     return m_Pos.y + (isMoney ? m_layout.moneyRowsTop : m_layout.jewelRowsTop) + rowInGroup * m_layout.listLineHeight;
 }
 
-int SEASON3B::CNewUIBankWindow::GetOfferRowTop(int row) const
+void SEASON3B::CNewUIBankWindow::GetOfferTileRect(int tile, RECT& rect) const
 {
-    return m_Pos.y + m_layout.marketRowsTop + row * m_layout.listLineHeight;
+    const int column = tile % m_layout.marketTileColumns;
+    const int row = tile / m_layout.marketTileColumns;
+
+    rect.left = m_Pos.x + m_layout.marketTileOriginX + column * m_layout.marketTileWidth;
+    rect.top = m_Pos.y + m_layout.marketTileOriginY + row * m_layout.marketTileHeight;
+    rect.right = rect.left + m_layout.marketTileWidth;
+    rect.bottom = rect.top + m_layout.marketTileHeight;
+}
+
+int SEASON3B::CNewUIBankWindow::GetShownOfferCount() const
+{
+    // A page can hold more boxes than the server sends offers for; those stand empty.
+    return std::min(static_cast<int>(Net::Bank::Store::Instance().GetOffers().size()),
+                    m_layout.marketTilesPerPage);
+}
+
+int SEASON3B::CNewUIBankWindow::GetOfferTileAtCursor() const
+{
+    const int shown = GetShownOfferCount();
+    for (int tile = 0; tile < shown; ++tile)
+    {
+        RECT rect;
+        GetOfferTileRect(tile, rect);
+        if (SEASON3B::CheckMouseIn(rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketTileHeight))
+        {
+            return tile;
+        }
+    }
+
+    return -1;
 }
 
 int SEASON3B::CNewUIBankWindow::GetLedgerRowTop(int row) const
@@ -1188,25 +1275,20 @@ bool SEASON3B::CNewUIBankWindow::ProcessValueSelection()
 
 bool SEASON3B::CNewUIBankWindow::ProcessOfferSelection()
 {
-    const auto& offers = Net::Bank::Store::Instance().GetOffers();
-    const int rows = std::min(static_cast<int>(offers.size()), m_layout.marketRows);
-
-    for (int row = 0; row < rows; ++row)
+    const int tile = GetOfferTileAtCursor();
+    if (tile < 0)
     {
-        const int top = GetOfferRowTop(row);
-        if (SEASON3B::CheckMouseIn(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight))
-        {
-            if (SEASON3B::IsRelease(VK_LBUTTON))
-            {
-                m_selectedOffer = row;
-                PlayBuffer(SOUND_CLICK01);
-            }
-
-            return true;
-        }
+        return false;
     }
 
-    return false;
+    if (SEASON3B::IsRelease(VK_LBUTTON))
+    {
+        m_selectedOffer = tile;
+        PlayBuffer(SOUND_CLICK01);
+    }
+
+    // The cursor is over a box, so nothing behind the window may take this frame.
+    return true;
 }
 
 bool SEASON3B::CNewUIBankWindow::ProcessLedgerSelection()
@@ -1347,9 +1429,7 @@ void SEASON3B::CNewUIBankWindow::RenderItemsPage()
             fill = HOVERED_FILL_COLOR;
         }
 
-        RenderColorQuadARGB(static_cast<float>(rect.left + 1), static_cast<float>(rect.top + 1),
-                            static_cast<float>(m_layout.tileSize - 2), static_cast<float>(m_layout.tileSize - 2), fill);
-        RenderBorder(rect.left, rect.top, m_layout.tileSize, m_layout.tileSize, TILE_LINE_COLOR, 1);
+        RenderTilePlate(rect, fill);
 
         if (slot == m_selectedSlot && slot < BANK_TOTAL_SLOTS && m_boxes[slot] != nullptr)
         {
@@ -1459,66 +1539,16 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
 
 void SEASON3B::CNewUIBankWindow::RenderMarketPage()
 {
-    wchar_t szText[256] = {0};
-    wchar_t szAmount[64] = {0};
+    wchar_t szText[128] = {0};
 
-    const int sellerColumn = m_Pos.x + 26;
-    const int nameColumn = m_Pos.x + 116;
-    const int priceColumn = m_Pos.x + m_layout.width - 26;
+    RenderOfferTilePlates();
+    RenderOfferTilePrices();
+    RenderSelectedOfferDetail();
 
-    g_pRenderText->SetBgColor(0);
-    g_pRenderText->SetFont(g_hFontBold);
-    g_pRenderText->SetTextColor(143, 184, 232, 255);
-    g_pRenderText->RenderText(sellerColumn, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankSellerColumn, 90, 0);
-    g_pRenderText->RenderText(nameColumn, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankItemColumn, 140, 0);
-    g_pRenderText->RenderText(priceColumn - 118, m_Pos.y + m_layout.marketHeaderTop, I18N::Game::BankPriceColumn, 118,
-                              0, RT3_SORT_RIGHT);
-
-    RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(m_Pos.y + m_layout.marketHeaderTop + 16),
-                        static_cast<float>(m_layout.width - 32), 1.f, HEADING_LINE_COLOR);
-    EndRenderColor();
-
-    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    const auto& store = Net::Bank::Store::Instance();
     g_pRenderText->SetFont(g_hFont);
-
-    if (offers.empty())
-    {
-        g_pRenderText->SetTextColor(180, 180, 180, 255);
-        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.marketRowsTop + 60, I18N::Game::BankHasNoOffers,
-                                  m_layout.width - 40, 0, RT3_SORT_CENTER);
-    }
-
-    const int rows = std::min(static_cast<int>(offers.size()), m_layout.marketRows);
-    for (int row = 0; row < rows; ++row)
-    {
-        const Net::Bank::Offer& offer = offers[row];
-        const int top = GetOfferRowTop(row);
-
-        if (row == m_selectedOffer)
-        {
-            RenderColorQuadARGB(static_cast<float>(m_Pos.x + 16), static_cast<float>(top),
-                                static_cast<float>(m_layout.width - 32), static_cast<float>(m_layout.listLineHeight),
-                                PICKED_FILL_COLOR);
-            RenderBorder(m_Pos.x + 16, top, m_layout.width - 32, m_layout.listLineHeight, PICKED_EDGE_COLOR, 1);
-            EndRenderColor();
-            g_pRenderText->SetTextColor(255, 233, 168, 255);
-        }
-        else
-        {
-            g_pRenderText->SetTextColor(220, 214, 200, 255);
-        }
-
-        g_pRenderText->RenderText(sellerColumn, top + 4, offer.SellerName.c_str(), 90, 0);
-        g_pRenderText->RenderText(nameColumn, top + 4, offer.OfferName.c_str(), 140, 0);
-
-        FormatAmount(offer.PriceAmount, szAmount, std::size(szAmount));
-        mu_swprintf(szText, L"%ls %ls", szAmount, GetCurrencyName(offer.PriceCurrency));
-        g_pRenderText->RenderText(priceColumn - 118, top + 4, szText, 118, 0, RT3_SORT_RIGHT);
-    }
-
     g_pRenderText->SetTextColor(200, 194, 180, 255);
-    mu_swprintf(szText, I18N::Game::BankPageOf, Net::Bank::Store::Instance().GetOfferPage() + 1,
-                Net::Bank::Store::Instance().GetOfferPageCount());
+    mu_swprintf(szText, I18N::Game::BankPageOf, store.GetOfferPage() + 1, store.GetOfferPageCount());
     g_pRenderText->RenderText(m_Pos.x + m_layout.prevButton.right, m_Pos.y + m_layout.pageRowTop + 3, szText,
                               m_layout.nextButton.left - m_layout.prevButton.right, 0, RT3_SORT_CENTER);
 
@@ -1527,6 +1557,152 @@ void SEASON3B::CNewUIBankWindow::RenderMarketPage()
     RenderButton(m_abtn[BTN_BUY], false);
     RenderButton(m_abtn[BTN_CANCEL_OFFER], false);
     RenderButton(m_abtn[BTN_MINE], m_ownOffersOnly);
+
+    RenderHoveredOfferInfo();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderOfferTilePlates()
+{
+    const int gridX = m_Pos.x + m_layout.marketTileOriginX;
+    const int gridY = m_Pos.y + m_layout.marketTileOriginY;
+    const int gridWidth = m_layout.marketTileColumns * m_layout.marketTileWidth;
+    const int gridHeight = m_layout.marketTileRows * m_layout.marketTileHeight;
+
+    RenderColorQuadARGB(static_cast<float>(gridX), static_cast<float>(gridY), static_cast<float>(gridWidth),
+                        static_cast<float>(gridHeight), GRID_BACK_COLOR);
+
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    const int shown = GetShownOfferCount();
+    const int hovered = GetOfferTileAtCursor();
+
+    for (int tile = 0; tile < m_layout.marketTilesPerPage; ++tile)
+    {
+        RECT rect;
+        GetOfferTileRect(tile, rect);
+
+        unsigned int fill = TILE_COLOR;
+        if (tile >= shown)
+        {
+            // The last page holds fewer offers than boxes; those stand empty and dark.
+            fill = GRID_BACK_COLOR;
+        }
+        else if (tile == m_selectedOffer)
+        {
+            fill = PICKED_FILL_COLOR;
+        }
+        else if (tile == hovered)
+        {
+            fill = HOVERED_FILL_COLOR;
+        }
+
+        RenderTilePlate(rect, fill);
+
+        if (tile >= shown)
+        {
+            continue;
+        }
+
+        if (tile == m_selectedOffer)
+        {
+            RenderBorder(rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketTileHeight, PICKED_EDGE_COLOR,
+                         2);
+        }
+        else if (IsOwnOffer(offers[tile]))
+        {
+            // An own offer cannot be bought, only taken back, so it says so before it is clicked.
+            RenderBorder(rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketTileHeight,
+                         OWN_OFFER_EDGE_COLOR, 1);
+        }
+    }
+
+    RenderBorder(gridX - 4, gridY - 4, gridWidth + 8, gridHeight + 8, GRID_FRAME_COLOR, 2);
+    EndRenderColor();
+}
+
+void SEASON3B::CNewUIBankWindow::RenderOfferTilePrices()
+{
+    wchar_t szText[64] = {0};
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0);
+
+    const int shown = GetShownOfferCount();
+    if (shown == 0)
+    {
+        g_pRenderText->SetTextColor(180, 180, 180, 255);
+        g_pRenderText->RenderText(m_Pos.x + 20, m_Pos.y + m_layout.marketTileOriginY + m_layout.marketTileHeight,
+                                  I18N::Game::BankHasNoOffers, m_layout.width - 40, 0, RT3_SORT_CENTER);
+        return;
+    }
+
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    const int textWidth = m_layout.marketTileWidth - 4;
+
+    for (int tile = 0; tile < shown; ++tile)
+    {
+        const Net::Bank::Offer& offer = offers[tile];
+        RECT rect;
+        GetOfferTileRect(tile, rect);
+
+        if (offer.Kind == Net::Bank::OfferKind::Currency)
+        {
+            // An amount of a currency has no picture, so its own amount fills the space one would
+            // have taken.
+            g_pRenderText->SetTextColor(220, 214, 200, 255);
+            FormatPriceForTile(offer.OfferedAmount, szText, std::size(szText));
+            g_pRenderText->RenderText(rect.left + 2, rect.top + m_layout.marketPictureHeight / 2 - PRICE_LINE_HEIGHT,
+                                      szText, textWidth, 0, RT3_SORT_CENTER);
+            g_pRenderText->RenderText(rect.left + 2, rect.top + m_layout.marketPictureHeight / 2,
+                                      GetCurrencyShortName(offer.OfferedCurrency), textWidth, 0, RT3_SORT_CENTER);
+        }
+        else if (tile < static_cast<int>(m_offerItems.size()) && m_offerItems[tile] != nullptr &&
+                 m_offerItems[tile]->Level > 0)
+        {
+            // Two of the same item at two prices differ by their level, which no picture shows.
+            g_pRenderText->SetTextColor(255, 210, 76, 255);
+            mu_swprintf(szText, L"+%d", static_cast<int>(m_offerItems[tile]->Level));
+            g_pRenderText->RenderText(rect.left + 2, rect.top + 2, szText, textWidth, 0, RT3_SORT_RIGHT);
+        }
+
+        const int priceTop = rect.top + m_layout.marketPictureHeight;
+
+        g_pRenderText->SetTextColor(255, 210, 76, 255);
+        FormatPriceForTile(offer.PriceAmount, szText, std::size(szText));
+        g_pRenderText->RenderText(rect.left + 2, priceTop, szText, textWidth, 0, RT3_SORT_CENTER);
+
+        g_pRenderText->SetTextColor(180, 176, 166, 255);
+        g_pRenderText->RenderText(rect.left + 2, priceTop + PRICE_LINE_HEIGHT,
+                                  GetCurrencyShortName(offer.PriceCurrency), textWidth, 0, RT3_SORT_CENTER);
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::RenderSelectedOfferDetail()
+{
+    if (m_selectedOffer < 0 || m_selectedOffer >= GetShownOfferCount())
+    {
+        return;
+    }
+
+    wchar_t szAmount[64] = {0};
+    wchar_t szText[256] = {0};
+
+    const Net::Bank::Offer& offer = Net::Bank::Store::Instance().GetOffers()[m_selectedOffer];
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(255, 210, 76, 255);
+    g_pRenderText->RenderText(m_Pos.x + 16, m_Pos.y + m_layout.infoRowTop, offer.OfferName.c_str(),
+                              m_layout.width / 2 - 20, 0);
+
+    // The price stands here in full, because the strip under a picture holds a shortened one, and
+    // beside it stands who is asking for it.
+    FormatAmount(offer.PriceAmount, szAmount, std::size(szAmount));
+    mu_swprintf(szText, L"%ls %ls%ls%ls", szAmount, GetCurrencyName(offer.PriceCurrency), DETAIL_SEPARATOR,
+                offer.SellerName.c_str());
+
+    g_pRenderText->SetTextColor(200, 194, 180, 255);
+    g_pRenderText->RenderText(m_Pos.x + m_layout.width / 2, m_Pos.y + m_layout.infoRowTop, szText,
+                              m_layout.width / 2 - 16, 0, RT3_SORT_RIGHT);
 }
 
 void SEASON3B::CNewUIBankWindow::RenderLedgerPage()
@@ -1689,32 +1865,79 @@ void SEASON3B::CNewUIBankWindow::RenderHoveredItemInfo()
     m_pNewUI3DRenderMng->RenderUI2DEffect(INVENTORY_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_ITEM_TOOLTIP, 0);
 }
 
-void SEASON3B::CNewUIBankWindow::UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB)
+void SEASON3B::CNewUIBankWindow::RenderHoveredOfferInfo()
 {
-    auto* pWindow = static_cast<CNewUIBankWindow*>(pClass);
-    if (pWindow == nullptr || dwParamA != RENDER_ITEM_TOOLTIP)
+    if (m_pNewUI3DRenderMng == nullptr || (g_pPickedItem && g_pPickedItem->GetItem()))
     {
         return;
     }
 
-    const int slot = pWindow->GetTileAtCursor();
-    if (slot < 0 || pWindow->m_boxes[slot] == nullptr)
+    const int tile = GetOfferTileAtCursor();
+    if (tile < 0 || tile >= static_cast<int>(m_offerItems.size()) || m_offerItems[tile] == nullptr)
+    {
+        return;
+    }
+
+    m_pNewUI3DRenderMng->RenderUI2DEffect(INVENTORY_CAMERA_Z_ORDER, UI2DEffectCallback, this, RENDER_OFFER_TOOLTIP, 0);
+}
+
+void SEASON3B::CNewUIBankWindow::UI2DEffectCallback(LPVOID pClass, DWORD dwParamA, DWORD dwParamB)
+{
+    auto* pWindow = static_cast<CNewUIBankWindow*>(pClass);
+    if (pWindow == nullptr)
     {
         return;
     }
 
     RECT rect;
-    pWindow->GetTileRect(slot - pWindow->m_itemPage * pWindow->m_layout.itemsPerPage, rect);
-    RenderItemInfo(rect.left + pWindow->m_layout.tileSize / 2, rect.top, pWindow->m_boxes[slot], false);
-}
 
-void SEASON3B::CNewUIBankWindow::Render3D()
-{
-    if (!IsVisible() || m_page != Page::Items)
+    if (dwParamA == RENDER_ITEM_TOOLTIP)
+    {
+        const int slot = pWindow->GetTileAtCursor();
+        if (slot < 0 || pWindow->m_boxes[slot] == nullptr)
+        {
+            return;
+        }
+
+        pWindow->GetTileRect(slot - pWindow->m_itemPage * pWindow->m_layout.itemsPerPage, rect);
+        RenderItemInfo(rect.left + pWindow->m_layout.tileSize / 2, rect.top, pWindow->m_boxes[slot], false);
+        return;
+    }
+
+    if (dwParamA != RENDER_OFFER_TOOLTIP)
     {
         return;
     }
 
+    const int tile = pWindow->GetOfferTileAtCursor();
+    if (tile < 0 || tile >= static_cast<int>(pWindow->m_offerItems.size()) || pWindow->m_offerItems[tile] == nullptr)
+    {
+        return;
+    }
+
+    pWindow->GetOfferTileRect(tile, rect);
+    RenderItemInfo(rect.left + pWindow->m_layout.marketTileWidth / 2, rect.top, pWindow->m_offerItems[tile], false);
+}
+
+void SEASON3B::CNewUIBankWindow::Render3D()
+{
+    if (!IsVisible())
+    {
+        return;
+    }
+
+    if (m_page == Page::Items)
+    {
+        RenderStorageItems3D();
+    }
+    else if (m_page == Page::Market)
+    {
+        RenderOfferItems3D();
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::RenderStorageItems3D()
+{
     for (int slotOnPage = 0; slotOnPage < m_layout.itemsPerPage; ++slotOnPage)
     {
         const int slot = m_itemPage * m_layout.itemsPerPage + slotOnPage;
@@ -1731,21 +1954,99 @@ void SEASON3B::CNewUIBankWindow::Render3D()
 
         RECT rect;
         GetTileRect(slotOnPage, rect);
-
-        // Every box is the same size, so the picture keeps the proportions of the item and is
-        // drawn as large as it can be inside its box.
-        const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[pItem->Type];
-        const int columns = pItemAttr->Width > 0 ? pItemAttr->Width : 1;
-        const int rows = pItemAttr->Height > 0 ? pItemAttr->Height : 1;
-        const float scale = static_cast<float>(m_layout.tileSize - 10) / static_cast<float>(std::max(columns, rows));
-        const float width = columns * scale;
-        const float height = rows * scale;
-        const float x = rect.left + (m_layout.tileSize - width) / 2.f;
-        const float y = rect.top + (m_layout.tileSize - height) / 2.f;
-
-        RenderItem3D(x, y, width, height, pItem->Type, pItem->Level, pItem->ExcellentFlags, pItem->AncientDiscriminator,
-                     false);
+        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.tileSize, m_layout.tileSize);
     }
+}
+
+void SEASON3B::CNewUIBankWindow::RenderOfferItems3D()
+{
+    const int shown = std::min(GetShownOfferCount(), static_cast<int>(m_offerItems.size()));
+    for (int tile = 0; tile < shown; ++tile)
+    {
+        const ITEM* pItem = m_offerItems[tile];
+        if (pItem == nullptr)
+        {
+            continue;
+        }
+
+        RECT rect;
+        GetOfferTileRect(tile, rect);
+
+        // Only the upper part of a box holds the picture; under it stands what the offer costs.
+        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketPictureHeight);
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::RenderTilePlate(const RECT& rect, unsigned int fill)
+{
+    const int width = rect.right - rect.left;
+    const int height = rect.bottom - rect.top;
+
+    RenderColorQuadARGB(static_cast<float>(rect.left + 1), static_cast<float>(rect.top + 1),
+                        static_cast<float>(width - 2), static_cast<float>(height - 2), fill);
+    RenderBorder(rect.left, rect.top, width, height, TILE_LINE_COLOR, 1);
+}
+
+void SEASON3B::CNewUIBankWindow::RenderItemPicture(const ITEM& item, int left, int top, int width, int height)
+{
+    // Every box is the same size, so the picture keeps the proportions of the item and is drawn as
+    // large as it can be inside its box.
+    const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[item.Type];
+    const int columns = pItemAttr->Width > 0 ? pItemAttr->Width : 1;
+    const int rows = pItemAttr->Height > 0 ? pItemAttr->Height : 1;
+    const int room = std::max(1, std::min(width, height) - PICTURE_MARGIN);
+    const float scale = static_cast<float>(room) / static_cast<float>(std::max(columns, rows));
+    const float pictureWidth = columns * scale;
+    const float pictureHeight = rows * scale;
+
+    RenderItem3D(left + (width - pictureWidth) / 2.f, top + (height - pictureHeight) / 2.f, pictureWidth,
+                 pictureHeight, item.Type, item.Level, item.ExcellentFlags, item.AncientDiscriminator, false);
+}
+
+void SEASON3B::CNewUIBankWindow::RebuildOfferItems()
+{
+    ClearOfferItems();
+
+    const auto& offers = Net::Bank::Store::Instance().GetOffers();
+    m_offerItems.reserve(offers.size());
+
+    for (const Net::Bank::Offer& offer : offers)
+    {
+        // An offer of a currency carries no item, and neither does one whose item the server could
+        // not write; both draw their amount where a picture would have stood.
+        const bool carriesItem =
+            offer.Kind == Net::Bank::OfferKind::Items &&
+            std::any_of(offer.ItemData.begin(), offer.ItemData.end(), [](BYTE value) { return value != 0; });
+
+        m_offerItems.push_back(carriesItem ? g_pNewItemMng->CreateItem(offer.ItemData) : nullptr);
+    }
+
+    if (m_selectedOffer >= static_cast<int>(offers.size()))
+    {
+        // The page which arrived is shorter than the one the pick was made on.
+        m_selectedOffer = -1;
+    }
+
+    m_offerGeneration = Net::Bank::Store::Instance().GetOfferGeneration();
+}
+
+void SEASON3B::CNewUIBankWindow::ClearOfferItems()
+{
+    for (ITEM* pItem : m_offerItems)
+    {
+        if (pItem != nullptr && g_pNewItemMng != nullptr)
+        {
+            g_pNewItemMng->DeleteItem(pItem);
+        }
+    }
+
+    m_offerItems.clear();
+}
+
+bool SEASON3B::CNewUIBankWindow::IsOwnOffer(const Net::Bank::Offer& offer)
+{
+    // The server lists the character which made the offer, which is the name this client plays.
+    return Hero != nullptr && !offer.SellerName.empty() && offer.SellerName == Hero->ID;
 }
 
 const wchar_t* SEASON3B::CNewUIBankWindow::GetCurrencyName(Net::Bank::Currency currency)

@@ -49,8 +49,10 @@ namespace SEASON3B
             IMAGE_INVENTORY_EXIT_BTN, //"newui_exit_00.tga"
             IMAGE_INVENTORY_REPAIR_BTN, //"newui_repair_00.tga"
             IMAGE_INVENTORY_EXPAND_BTN, //"newui_expansion_btn.tga"
-            // The bank button borrows the empty text button instead of shipping an icon.
-            IMAGE_INVENTORY_BANK_BTN = CNewUIMessageBoxMng::IMAGE_MSGBOX_BTN_EMPTY_VERY_SMALL,
+            // The bank button wears an icon like the rest of the row. The plate of the dialogs is
+            // cut 54x23 and the button takes its size as the piece to cut, so at 36x29 it showed a
+            // corner of one state and a stripe of the next one.
+            IMAGE_INVENTORY_BANK_BTN, //"newui_Bt_money01.tga"
         };
 
         enum MYSHOP_MODE

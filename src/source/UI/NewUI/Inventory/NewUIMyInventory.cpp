@@ -1197,9 +1197,7 @@ void CNewUIMyInventory::SetButtonInfo()
     m_BtnExpand.ChangeToolTipText(&I18N::Game::OpenExpandedInventoryK, true);
 
     // The way to the bank of the account; it is not an npc, so the inventory is where it is reached.
-    m_BtnBank.ChangeText(I18N::Game::BankShortLabel);
-    m_BtnBank.ChangeTextBackColor(RGBA(255, 255, 255, 0));
-    m_BtnBank.ChangeButtonImgState(true, IMAGE_INVENTORY_BANK_BTN, true);
+    m_BtnBank.ChangeButtonImgState(true, IMAGE_INVENTORY_BANK_BTN, false);
     m_BtnBank.ChangeButtonInfo(m_Pos.x + 153, m_Pos.y + 391, 36, 29);
     m_BtnBank.ChangeToolTipText(&I18N::Game::Bank, true);
 }
@@ -1227,6 +1225,7 @@ void CNewUIMyInventory::LoadImages() const
     LoadBitmap(L"Interface\\newui_exit_00.tga", IMAGE_INVENTORY_EXIT_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_repair_00.tga", IMAGE_INVENTORY_REPAIR_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_expansion_btn.tga", IMAGE_INVENTORY_EXPAND_BTN, GL_LINEAR);
+    LoadBitmap(L"Interface\\newui_Bt_money01.tga", IMAGE_INVENTORY_BANK_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_Bt_openshop.tga", IMAGE_INVENTORY_MYSHOP_OPEN_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_Bt_closeshop.tga", IMAGE_INVENTORY_MYSHOP_CLOSE_BTN, GL_LINEAR);
 }
@@ -1256,6 +1255,7 @@ void CNewUIMyInventory::UnloadImages()
     DeleteBitmap(IMAGE_INVENTORY_BACK_TOP);
     DeleteBitmap(IMAGE_INVENTORY_BACK);
     DeleteBitmap(IMAGE_INVENTORY_EXPAND_BTN);
+    DeleteBitmap(IMAGE_INVENTORY_BANK_BTN);
 }
 
 void CNewUIMyInventory::RenderFrame() const
@@ -1371,10 +1371,12 @@ void CNewUIMyInventory::RenderButtons()
         {
             m_BtnMyShop.Render();
         }
+        // Drawn under the same condition which lets it be clicked, so the row never offers a way
+        // to the bank while another window keeps the click for itself.
+        m_BtnBank.Render();
     }
     m_BtnExit.Render();
     m_BtnExpand.Render();
-    m_BtnBank.Render();
 
     DisableAlphaBlend();
 }

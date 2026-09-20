@@ -852,6 +852,20 @@ bool SEASON3B::CNewUIBankWindow::HasSelectedItem()
     return false;
 }
 
+void SEASON3B::CNewUIBankWindow::ShowMarketPage()
+{
+    // The same three lines the tab of the market runs, so reaching the market from the menu and
+    // reaching it from the tab cannot drift apart.
+    m_page = Page::Market;
+    m_selectedOffer = -1;
+    RequestMarketPage(0);
+}
+
+bool SEASON3B::CNewUIBankWindow::IsMarketPage() const
+{
+    return m_page == Page::Market;
+}
+
 void SEASON3B::CNewUIBankWindow::RequestMarketPage(BYTE page)
 {
     // A dropdown lists what it lets through first, so its first row is the one which filters

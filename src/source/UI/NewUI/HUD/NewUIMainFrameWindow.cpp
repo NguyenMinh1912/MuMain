@@ -865,7 +865,7 @@ bool SEASON3B::CNewUIMainFrameWindow::BtnProcess()
         }
         else if (m_BtnWindow.UpdateMouseEvent() == true)
         {
-            g_pNewUISystem->Toggle(SEASON3B::INTERFACE_WINDOW_MENU);
+            g_pNewUISystem->Toggle(SEASON3B::INTERFACE_GAME_MENU);
             PlayBuffer(SOUND_CLICK01);
             return true;
         }

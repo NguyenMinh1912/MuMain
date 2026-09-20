@@ -22,6 +22,7 @@
 #include "UI/NewUI/NPCs/NewUIGatemanWindow.h"
 #include "UI/NewUI/Events/NewUIGateSwitchWindow.h"
 #include "UI/NewUI/Inventory/NewUIBankWindow.h"
+#include "UI/NewUI/HUD/NewUIGameMenu.h"
 #include "UI/NewUI/Inventory/NewUIStorageInventory.h"
 #include "UI/NewUI/Inventory/NewUIStorageInventoryExt.h"
 #include "Guild/NewUIGuildInfoWindow.h"
@@ -167,6 +168,7 @@ namespace SEASON3B
         CNewUIGatemanWindow* m_pNewGatemanWindow;
         CNewUIGateSwitchWindow* m_pNewGateSwitchWindow;
         CNewUIBankWindow* m_pNewBankWindow;
+        CNewUIGameMenu* m_pNewGameMenu;
         CNewUIStorageInventory* m_pNewStorageInventory;
         CNewUIStorageInventoryExt* m_pNewStorageInventoryExt;
         CNewUIGuildMakeWindow* m_pNewGuildMakeWindow;
@@ -254,6 +256,7 @@ namespace SEASON3B
         CNewUIGatemanWindow* GetUI_NewGatemanWindow() const;
         CNewUIGateSwitchWindow* GetUI_NewGateSwitchWindow() const;
         CNewUIBankWindow* GetUI_NewBankWindow() const;
+        CNewUIGameMenu* GetUI_NewGameMenu() const;
         CNewUIStorageInventory* GetUI_NewStorageInventory() const;
         CNewUIStorageInventoryExt* GetUI_NewStorageInventoryExt() const;
         CNewUIGuildInfoWindow* GetUI_NewGuildInfoWindow() const;
@@ -342,6 +345,7 @@ namespace SEASON3B
 #define g_pGatemanWindow SEASON3B::CNewUISystem::GetInstance()->GetUI_NewGatemanWindow()
 #define g_pGateSwitchWindow SEASON3B::CNewUISystem::GetInstance()->GetUI_NewGateSwitchWindow()
 #define g_pBankWindow SEASON3B::CNewUISystem::GetInstance()->GetUI_NewBankWindow()
+#define g_pGameMenu SEASON3B::CNewUISystem::GetInstance()->GetUI_NewGameMenu()
 #define g_pStorageInventory SEASON3B::CNewUISystem::GetInstance()->GetUI_NewStorageInventory()
 #define g_pStorageInventoryExt SEASON3B::CNewUISystem::GetInstance()->GetUI_NewStorageInventoryExt()
 #define g_pGuildMakeWindow SEASON3B::CNewUISystem::GetInstance()->GetUI_NewGuildMakeWindow()

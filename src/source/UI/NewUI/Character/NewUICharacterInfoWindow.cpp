@@ -57,43 +57,43 @@ namespace
     // Only the ratio between the weights matters - the free level-up points
     // are split proportionally, so {4,1,1,0,0} means "4 str for every agi/vit".
     const SUGGEST_PRESET g_aPresetWizard[] = {
-        { &I18N::Game::PvE,        { 0, 1, 1, 4, 0 } },
-        { &I18N::Game::PvP,        { 0, 2, 2, 3, 0 } },
-        { &I18N::Game::FullEnergy, { 0, 0, 0, 1, 0 } },
+        {&I18N::Game::PvE, {0, 1, 1, 4, 0}},
+        {&I18N::Game::PvP, {0, 2, 2, 3, 0}},
+        {&I18N::Game::FullEnergy, {0, 0, 0, 1, 0}},
     };
 
     const SUGGEST_PRESET g_aPresetKnight[] = {
-        { &I18N::Game::PvE,          { 4, 1, 1, 0, 0 } },
-        { &I18N::Game::PvP,          { 3, 2, 2, 0, 0 } },
-        { &I18N::Game::FullStrength, { 1, 0, 0, 0, 0 } },
+        {&I18N::Game::PvE, {4, 1, 1, 0, 0}},
+        {&I18N::Game::PvP, {3, 2, 2, 0, 0}},
+        {&I18N::Game::FullStrength, {1, 0, 0, 0, 0}},
     };
 
     const SUGGEST_PRESET g_aPresetElf[] = {
-        { &I18N::Game::PvE,     { 1, 4, 0, 1, 0 } },
-        { &I18N::Game::PvP,     { 1, 3, 2, 1, 0 } },
-        { &I18N::Game::Support, { 0, 1, 1, 4, 0 } },
+        {&I18N::Game::PvE, {1, 4, 0, 1, 0}},
+        {&I18N::Game::PvP, {1, 3, 2, 1, 0}},
+        {&I18N::Game::Support, {0, 1, 1, 4, 0}},
     };
 
     const SUGGEST_PRESET g_aPresetMagicGladiator[] = {
-        { &I18N::Game::PvE, { 3, 1, 1, 2, 0 } },
-        { &I18N::Game::PvP, { 2, 2, 2, 2, 0 } },
+        {&I18N::Game::PvE, {3, 1, 1, 2, 0}},
+        {&I18N::Game::PvP, {2, 2, 2, 2, 0}},
     };
 
     const SUGGEST_PRESET g_aPresetDarkLord[] = {
-        { &I18N::Game::PvE,         { 2, 1, 1, 1, 2 } },
-        { &I18N::Game::PvP,         { 2, 2, 2, 1, 2 } },
-        { &I18N::Game::FullCommand, { 0, 0, 0, 0, 1 } },
+        {&I18N::Game::PvE, {2, 1, 1, 1, 2}},
+        {&I18N::Game::PvP, {2, 2, 2, 1, 2}},
+        {&I18N::Game::FullCommand, {0, 0, 0, 0, 1}},
     };
 
     const SUGGEST_PRESET g_aPresetSummoner[] = {
-        { &I18N::Game::PvE,        { 0, 1, 1, 4, 0 } },
-        { &I18N::Game::PvP,        { 0, 2, 2, 3, 0 } },
-        { &I18N::Game::FullEnergy, { 0, 0, 0, 1, 0 } },
+        {&I18N::Game::PvE, {0, 1, 1, 4, 0}},
+        {&I18N::Game::PvP, {0, 2, 2, 3, 0}},
+        {&I18N::Game::FullEnergy, {0, 0, 0, 1, 0}},
     };
 
     const SUGGEST_PRESET g_aPresetRageFighter[] = {
-        { &I18N::Game::PvE, { 3, 1, 2, 0, 0 } },
-        { &I18N::Game::PvP, { 2, 2, 3, 0, 0 } },
+        {&I18N::Game::PvE, {3, 1, 2, 0, 0}},
+        {&I18N::Game::PvP, {2, 2, 3, 0, 0}},
     };
 
     float ClampDefenseSuccessRateMultiplier(float multiplier)
@@ -338,9 +338,7 @@ bool SEASON3B::CNewUICharacterInfoWindow::Update()
 
 int SEASON3B::CNewUICharacterInfoWindow::GetStatCount() const
 {
-    return (gCharacterManager.GetBaseClass(Hero->Class) == CLASS_DARK_LORD)
-        ? BTN_STAT_COUNT
-        : BTN_STAT_COUNT - 1;
+    return (gCharacterManager.GetBaseClass(Hero->Class) == CLASS_DARK_LORD) ? BTN_STAT_COUNT : BTN_STAT_COUNT - 1;
 }
 
 const SEASON3B::CNewUICharacterInfoWindow::SUGGEST_PRESET*
@@ -451,7 +449,7 @@ void SEASON3B::CNewUICharacterInfoWindow::CalcSuggestion()
     // to the stats with the biggest fractional part so the split always adds
     // up to exactly iFreePoint.
     int iAssigned = 0;
-    int aRemainder[BTN_STAT_COUNT] = { 0 };
+    int aRemainder[BTN_STAT_COUNT] = {0};
     for (int i = 0; i < iStatCount; ++i)
     {
         m_aSuggestPoint[i] = (iFreePoint * pWeight[i]) / iTotalWeight;
@@ -499,8 +497,8 @@ void SEASON3B::CNewUICharacterInfoWindow::ApplySuggestedPoints()
             continue;
         }
 
-        SocketClient->ToGameServer()->SendIncreaseCharacterStatPointMultiple(
-            static_cast<CharacterStatAttribute>(i), static_cast<uint16_t>(m_aSuggestPoint[i]));
+        SocketClient->ToGameServer()->SendIncreaseCharacterStatPointMultiple(static_cast<CharacterStatAttribute>(i),
+                                                                             static_cast<uint16_t>(m_aSuggestPoint[i]));
     }
 }
 
@@ -1802,9 +1800,8 @@ void SEASON3B::CNewUICharacterInfoWindow::RenderSuggestion()
         return;
     }
 
-    const int aRowY[BTN_STAT_COUNT] = {
-        HEIGHT_STRENGTH, HEIGHT_DEXTERITY, HEIGHT_VITALITY, HEIGHT_ENERGY, HEIGHT_CHARISMA
-    };
+    const int aRowY[BTN_STAT_COUNT] = {HEIGHT_STRENGTH, HEIGHT_DEXTERITY, HEIGHT_VITALITY, HEIGHT_ENERGY,
+                                       HEIGHT_CHARISMA};
 
     const int iStatCount = GetStatCount();
 

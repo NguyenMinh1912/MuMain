@@ -90,7 +90,10 @@ public:
     // Gameplay — whether the Skill.bmd requirements (level, strength,
     // dexterity, energy, leadership) gate skill usage. See
     // CfgDefaultEnforceSkillRequirements for why this is off by default.
-    bool GetEnforceSkillRequirements() const { return m_enforceSkillRequirements; }
+    bool GetEnforceSkillRequirements() const
+    {
+        return m_enforceSkillRequirements;
+    }
 
     // Render
     bool GetSortParticleDraws() const { return m_sortParticleDraws; }

@@ -77,6 +77,8 @@ enum EPathNodeState : BYTE
     PATH_END = (0x04),
 };
 
+// DEFINE_ENUM_FLAG_OPERATORS comes from the Windows SDK, which cppcheck does not read.
+// cppcheck-suppress unknownMacro
 DEFINE_ENUM_FLAG_OPERATORS(EPathNodeState)
 
 enum EPathDirection

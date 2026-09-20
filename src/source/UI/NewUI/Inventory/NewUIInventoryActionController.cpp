@@ -657,9 +657,8 @@ bool CNewUIInventoryActionController::TryConsumeItem(CNewUIInventoryCtrl* target
         pItem->Type == ITEM_HELPER + 82 || pItem->Type == ITEM_POTION + 133 ||
         // Cash shop seals and auras. Without these the double click is silently swallowed
         // here and falls through to the equip path, so the items can never be used.
-        (pItem->Type >= ITEM_HELPER + 43 && pItem->Type <= ITEM_HELPER + 45) ||
-        pItem->Type == ITEM_HELPER + 62 || pItem->Type == ITEM_HELPER + 63 ||
-        pItem->Type == ITEM_HELPER + 93 || pItem->Type == ITEM_HELPER + 94 ||
+        (pItem->Type >= ITEM_HELPER + 43 && pItem->Type <= ITEM_HELPER + 45) || pItem->Type == ITEM_HELPER + 62 ||
+        pItem->Type == ITEM_HELPER + 63 || pItem->Type == ITEM_HELPER + 93 || pItem->Type == ITEM_HELPER + 94 ||
         (pItem->Type >= ITEM_HELPER + 103 && pItem->Type <= ITEM_HELPER + 105))
     {
         SendRequestUse(iIndex, 0);

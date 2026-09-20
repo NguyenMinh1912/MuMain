@@ -4593,7 +4593,8 @@ bool SEASON3B::CBankPriceMsgBoxLayout::SetLayout()
     if (0 == pMsgBox)
         return false;
 
-    if (false == pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
+    if (false ==
+        pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
         return false;
 
     pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
@@ -4606,7 +4607,8 @@ bool SEASON3B::CBankPriceMsgBoxLayout::SetLayout()
     return true;
 }
 
-CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner,
+                                                            const leaf::xstreambuf& xParam)
 {
     auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
     if (pMsgBox == nullptr)
@@ -4614,7 +4616,9 @@ CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ProcessOk(class CNewUIMessageB
         return CALLBACK_CONTINUE;
     }
 
-    wchar_t strText[MAX_TEXT_LENGTH] = { 0, };
+    wchar_t strText[MAX_TEXT_LENGTH] = {
+        0,
+    };
     pMsgBox->GetInputBoxText(strText);
 
     const int64_t price = ReadBankAmount(strText);
@@ -4630,17 +4634,20 @@ CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ProcessOk(class CNewUIMessageB
     return CALLBACK_BREAK;
 }
 
-CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
 {
     return ProcessOk(pOwner, xParam);
 }
 
-CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                            const leaf::xstreambuf& xParam)
 {
     return ProcessOk(pOwner, xParam);
 }
 
-CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                                const leaf::xstreambuf& xParam)
 {
     g_pBankWindow->CancelPendingInput();
     PlayBuffer(SOUND_CLICK01);
@@ -4654,7 +4661,8 @@ bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
     if (0 == pMsgBox)
         return false;
 
-    if (false == pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
+    if (false ==
+        pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
         return false;
 
     pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
@@ -4666,7 +4674,8 @@ bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
     return true;
 }
 
-CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
 {
     auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
     if (pMsgBox == nullptr)
@@ -4674,7 +4683,9 @@ CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessage
         return CALLBACK_CONTINUE;
     }
 
-    wchar_t strText[MAX_TEXT_LENGTH] = { 0, };
+    wchar_t strText[MAX_TEXT_LENGTH] = {
+        0,
+    };
     pMsgBox->GetInputBoxText(strText);
 
     const int64_t amount = ReadBankAmount(strText);
@@ -4689,17 +4700,20 @@ CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessage
     return CALLBACK_BREAK;
 }
 
-CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner,
+                                                              const leaf::xstreambuf& xParam)
 {
     return ProcessOk(pOwner, xParam);
 }
 
-CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
 {
     return ProcessOk(pOwner, xParam);
 }
 
-CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                                 const leaf::xstreambuf& xParam)
 {
     g_pBankWindow->CancelPendingInput();
     PlayBuffer(SOUND_CLICK01);

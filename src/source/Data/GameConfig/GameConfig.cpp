@@ -84,7 +84,8 @@ void GameConfig::Load()
     m_sortParticleDraws = ReadBool(CfgSectionRender, CfgKeySortParticleDraws, CfgDefaultSortParticleDraws);
     m_vsyncEnabled = ReadBool(CfgSectionRender, CfgKeyVSync, CfgDefaultVSync);
 
-    m_enforceSkillRequirements = ReadBool(CfgSectionGameplay, CfgKeyEnforceSkillRequirements, CfgDefaultEnforceSkillRequirements);
+    m_enforceSkillRequirements =
+        ReadBool(CfgSectionGameplay, CfgKeyEnforceSkillRequirements, CfgDefaultEnforceSkillRequirements);
 
     // Strip keys/sections we used to write but no longer use, so user config
     // files don't accumulate orphans. Append one line per retired key — no

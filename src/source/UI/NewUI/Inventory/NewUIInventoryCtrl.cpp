@@ -1229,8 +1229,7 @@ void SEASON3B::CNewUIInventoryCtrl::Render()
                                         // and the jewel of life for a repair.
                                         if (iType == ITEM_PET_UNICORN)
                                         {
-                                            if ((pPickItem->Type == ITEM_JEWEL_OF_BLESS &&
-                                                 pTargetItem->Level < 6) ||
+                                            if ((pPickItem->Type == ITEM_JEWEL_OF_BLESS && pTargetItem->Level < 6) ||
                                                 (pPickItem->Type == ITEM_JEWEL_OF_LIFE && iDurability != 255))
                                             {
                                                 bSuccess = true;

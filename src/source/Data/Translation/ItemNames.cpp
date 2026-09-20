@@ -15,58 +15,58 @@ extern ITEM_ATTRIBUTE* ItemAttribute;
 
 namespace
 {
-    bool g_bObserverRegistered = false;
+bool g_bObserverRegistered = false;
 
-    // The item index doubles as the legacy id in Items.<locale>.resx, so a
-    // single Lookup per slot is all the mapping this needs.
-    void ApplyLocalizedNames() noexcept
+// The item index doubles as the legacy id in Items.<locale>.resx, so a
+// single Lookup per slot is all the mapping this needs.
+void ApplyLocalizedNames() noexcept
+{
+    if (ItemAttribute == nullptr)
     {
-        if (ItemAttribute == nullptr)
-        {
-            return;
-        }
-
-        for (int i = 0; i < MAX_ITEM; ++i)
-        {
-            const wchar_t* pszName = I18N::Items::Lookup(i);
-            if (pszName == nullptr || pszName[0] == L'\0')
-            {
-                continue;
-            }
-
-            wcsncpy_s(ItemAttribute[i].Name, pszName, _TRUNCATE);
-        }
+        return;
     }
 
-    void OnLocaleChanged(void* /*pContext*/) noexcept
+    for (int i = 0; i < MAX_ITEM; ++i)
     {
-        ApplyLocalizedNames();
+        const wchar_t* pszName = I18N::Items::Lookup(i);
+        if (pszName == nullptr || pszName[0] == L'\0')
+        {
+            continue;
+        }
+
+        wcsncpy_s(ItemAttribute[i].Name, pszName, _TRUNCATE);
     }
 }
+
+void OnLocaleChanged(void* /*pContext*/) noexcept
+{
+    ApplyLocalizedNames();
+}
+} // namespace
 
 namespace Data::Items::Names
 {
-    void Initialize()
+void Initialize()
+{
+    ApplyLocalizedNames();
+
+    if (g_bObserverRegistered)
     {
-        ApplyLocalizedNames();
-
-        if (g_bObserverRegistered)
-        {
-            return;
-        }
-
-        I18N::RegisterLocaleObserver(&OnLocaleChanged, nullptr);
-        g_bObserverRegistered = true;
+        return;
     }
 
-    void Shutdown()
-    {
-        if (!g_bObserverRegistered)
-        {
-            return;
-        }
-
-        I18N::UnregisterLocaleObserver(&OnLocaleChanged, nullptr);
-        g_bObserverRegistered = false;
-    }
+    I18N::RegisterLocaleObserver(&OnLocaleChanged, nullptr);
+    g_bObserverRegistered = true;
 }
+
+void Shutdown()
+{
+    if (!g_bObserverRegistered)
+    {
+        return;
+    }
+
+    I18N::UnregisterLocaleObserver(&OnLocaleChanged, nullptr);
+    g_bObserverRegistered = false;
+}
+} // namespace Data::Items::Names

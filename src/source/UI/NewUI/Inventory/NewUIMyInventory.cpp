@@ -474,16 +474,15 @@ bool CNewUIMyInventory::UpdateMouseEvent()
         && !UI::Scaling::BottomHudContainsWindowPoint(WindowWidth, WindowHeight,
                                                        g_fWindowMouseX, g_fWindowMouseY))
     {
-        if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_TRADE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_DEVILSQUARE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_BLOODCASTLE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_STORAGE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_BANK) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_MYSHOP_INVENTORY) == true
-            || g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_LUCKYITEMWND) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_PURCHASESHOP_INVENTORY) == true)
+        if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_TRADE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_DEVILSQUARE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_BLOODCASTLE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_STORAGE) == true || g_pNewUISystem->IsVisible(INTERFACE_BANK) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_MYSHOP_INVENTORY) == true ||
+            g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_LUCKYITEMWND) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_PURCHASESHOP_INVENTORY) == true)
         {
             ResetMouseLButton();
             return false;

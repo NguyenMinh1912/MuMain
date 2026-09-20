@@ -240,6 +240,25 @@ namespace SEASON3B
 
         STORAGE_TYPE GetStorageType() const { return m_StorageType; }
 
+        /// <summary>
+        /// Gets the box number the first square of this control stands for.
+        /// </summary>
+        int GetIndexOffset() const
+        {
+            return m_nIndexOffset;
+        }
+
+        /// <summary>
+        /// Moves the window this control shows onto a bigger storage, which is how a storage with
+        /// more boxes than squares is shown one page at a time. The caller refills the control
+        /// afterwards, because the items it holds belong to the page it showed before.
+        /// </summary>
+        /// <param name="nIndexOffset">The box number the first square stands for from now on.</param>
+        void SetIndexOffset(int nIndexOffset)
+        {
+            m_nIndexOffset = nIndexOffset;
+        }
+
         void SetSquareColorNormal(float fRed, float fGreen, float fBlue);
         void GetSquareColorNormal(float* pfParams) const;
         void SetSquareColorWarning(float fRed, float fGreen, float fBlue);

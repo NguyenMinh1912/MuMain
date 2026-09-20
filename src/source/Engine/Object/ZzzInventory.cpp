@@ -57,6 +57,15 @@
 extern int g_iChatInputType;
 extern CUIGuildListBox* g_pGuildListBox;
 
+// Bonuses of the pet unicorn, mirroring the server side configuration
+// (Persistence/Initialization/VersionSeasonSix/Items/Pets.cs): it gives
+// 50 % experience and zen at +0 and grows with every item level, up to
+// 140 % at its maximum level of +6.
+constexpr int PET_UNICORN_BASE_RATE_PERCENT = 50;
+constexpr int PET_UNICORN_RATE_PERCENT_PER_LEVEL = 15;
+constexpr int PET_UNICORN_BASE_DEFENSE = 50;
+constexpr int PET_UNICORN_DEFENSE_PER_LEVEL = 10;
+
 int			g_nTaxRate = 0;
 int			g_nChaosTaxRate = 0;
 
@@ -170,27 +179,27 @@ int getLevelGeneration(int level, unsigned int* color)
     if (level >= 300)
     {
         lvl = 300;
-        *color = (255 << 24) + (255 << 16) + (153 << 8) + (255);
+        *color = (255u << 24) + (255 << 16) + (153 << 8) + (255);
     }
     else if (level >= 200)
     {
         lvl = 200;
-        *color = (255 << 24) + (255 << 16) + (230 << 8) + (210);
+        *color = (255u << 24) + (255 << 16) + (230 << 8) + (210);
     }
     else if (level >= 100)
     {
         lvl = 100;
-        *color = (255 << 24) + (24 << 16) + (201 << 8) + (0);
+        *color = (255u << 24) + (24 << 16) + (201 << 8) + (0);
     }
     else if (level >= 50)
     {
         lvl = 50;
-        *color = (255 << 24) + (0 << 16) + (150 << 8) + (255);
+        *color = (255u << 24) + (0 << 16) + (150 << 8) + (255);
     }
     else
     {
         lvl = 10;
-        *color = (255 << 24) + (0 << 16) + (0 << 8) + (255);
+        *color = (255u << 24) + (0 << 16) + (0 << 8) + (255);
     }
     return lvl;
 }
@@ -1056,18 +1065,18 @@ unsigned int getGoldColor(DWORD Gold)
 {
     if (Gold >= 10000000)
     {
-        return  (255 << 24) + (0 << 16) + (0 << 8) + (255);
+        return (255u << 24) + (0 << 16) + (0 << 8) + (255);
     }
     else if (Gold >= 1000000)
     {
-        return  (255 << 24) + (0 << 16) + (150 << 8) + (255);
+        return (255u << 24) + (0 << 16) + (150 << 8) + (255);
     }
     else if (Gold >= 100000)
     {
-        return  (255 << 24) + (24 << 16) + (201 << 8) + (0);
+        return (255u << 24) + (24 << 16) + (201 << 8) + (0);
     }
 
-    return  (255 << 24) + (150 << 16) + (220 << 8) + (255);
+    return (255u << 24) + (150 << 16) + (220 << 8) + (255);
 }
 
 void ConvertGold(double dGold, wchar_t* szText, int iDecimals /*= 0*/)
@@ -1346,10 +1355,6 @@ void RepairAllGold(void)
                 continue;
             }
             if (pItem->Type >= ITEM_POTION + 92 && pItem->Type <= ITEM_POTION + 93)
-            {
-                continue;
-            }
-            if (pItem->Type == ITEM_POTION + 95)
             {
                 continue;
             }
@@ -1713,7 +1718,7 @@ void GetItemName(int iType, int iLevel, wchar_t* Text)
     }
     else if (iType == ITEM_ORB_OF_SUMMONING)
     {
-        mu_swprintf(Text, L"%ls %ls", SkillAttribute[30 + iLevel].Name, I18N::Game::Jewel);
+        mu_swprintf(Text, I18N::Game::SJewel, SkillAttribute[30 + iLevel].Name);
     }
     else if (iType == ITEM_RED_RIBBON_BOX)
     {
@@ -1765,7 +1770,7 @@ void GetItemName(int iType, int iLevel, wchar_t* Text)
         {
             if (SommonTable[iLevel] == MonsterScript[i].Type)
             {
-                mu_swprintf(Text, L"%ls %ls", MonsterScript[i].Name, I18N::Game::TransformationRing);
+                mu_swprintf(Text, I18N::Game::STransformationRing, MonsterScript[i].Name);
             }
         }
     }
@@ -2421,7 +2426,7 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
     }
     else if (ip->Type == ITEM_ORB_OF_SUMMONING)
     {
-        mu_swprintf(TextList[TextNum], L"%ls %ls", SkillAttribute[30 + Level].Name, I18N::Game::Jewel);
+        mu_swprintf(TextList[TextNum], I18N::Game::SJewel, SkillAttribute[30 + Level].Name);
     }
     else if (ip->Type == ITEM_TRANSFORMATION_RING)
     {
@@ -2429,7 +2434,7 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
         {
             if (SommonTable[Level] == MonsterScript[i].Type)
             {
-                mu_swprintf(TextList[TextNum], L"%ls %ls", MonsterScript[i].Name, I18N::Game::TransformationRing);
+                mu_swprintf(TextList[TextNum], I18N::Game::STransformationRing, MonsterScript[i].Name);
                 break;
             }
         }
@@ -3125,15 +3130,25 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
     }
     else if (ip->Type == ITEM_PET_UNICORN)
     {
+        // The pet unicorn grows with its item level: the server adds
+        // PET_UNICORN_RATE_PER_LEVEL percent experience and zen and
+        // PET_UNICORN_DEFENSE_PER_LEVEL defense for every level.
+        const int iRatePercent = PET_UNICORN_BASE_RATE_PERCENT + (Level * PET_UNICORN_RATE_PERCENT_PER_LEVEL);
+        const int iDefense = PET_UNICORN_BASE_DEFENSE + (Level * PET_UNICORN_DEFENSE_PER_LEVEL);
+
         mu_swprintf(TextList[TextNum], I18N::Game::AutoCollectsZenAroundYou);
         TextListColor[TextNum] = TEXT_COLOR_BLUE;
         TextBold[TextNum] = false;
         TextNum++;
-        mu_swprintf(TextList[TextNum], I18N::Game::ZenIncrease50);
+        mu_swprintf(TextList[TextNum], I18N::Game::ZenIncreaseD, iRatePercent);
         TextListColor[TextNum] = TEXT_COLOR_BLUE;
         TextBold[TextNum] = false;
         TextNum++;
-        mu_swprintf(TextList[TextNum], I18N::Game::IncreaseDefensiveSkill50);
+        mu_swprintf(TextList[TextNum], I18N::Game::ExperienceRateIsIncreasedD, iRatePercent);
+        TextListColor[TextNum] = TEXT_COLOR_BLUE;
+        TextBold[TextNum] = false;
+        TextNum++;
+        mu_swprintf(TextList[TextNum], I18N::Game::IncreaseDefensiveSkillD, iDefense);
         TextListColor[TextNum] = TEXT_COLOR_BLUE;
         TextBold[TextNum] = false;
         TextNum++;
@@ -5816,7 +5831,7 @@ void RenderRepairInfo(int sx, int sy, ITEM* ip, bool Sell)
 
     if (ip->Type == ITEM_ORB_OF_SUMMONING)
     {
-        mu_swprintf(TextList[TextNum], L"%ls %ls", SkillAttribute[30 + Level].Name, I18N::Game::Jewel);
+        mu_swprintf(TextList[TextNum], I18N::Game::SJewel, SkillAttribute[30 + Level].Name);
     }
     else if (ip->Type == ITEM_TRANSFORMATION_RING)
     {
@@ -5824,7 +5839,7 @@ void RenderRepairInfo(int sx, int sy, ITEM* ip, bool Sell)
         {
             if (SommonTable[Level] == MonsterScript[i].Type)
             {
-                mu_swprintf(TextList[TextNum], L"%ls %ls", MonsterScript[i].Name, I18N::Game::TransformationRing);
+                mu_swprintf(TextList[TextNum], I18N::Game::STransformationRing, MonsterScript[i].Name);
                 break;
             }
         }
@@ -6226,7 +6241,7 @@ struct GroundItemLabelDescriptor
 
 DWORD MakeRgba(BYTE red, BYTE green, BYTE blue, BYTE alpha = 255)
 {
-    return red + (green << 8) + (blue << 16) + (alpha << 24);
+    return red + (green << 8) + (blue << 16) + (static_cast<DWORD>(alpha) << 24);
 }
 
 void SetDescriptorTextColor(GroundItemLabelDescriptor& descriptor, float red, float green, float blue)
@@ -6324,7 +6339,7 @@ void BuildGroundItemLabelDescriptor(OBJECT* o, ITEM* ip, GroundItemLabelDescript
     if (o->Type == MODEL_ORB_OF_SUMMONING)
     {
         SetDescriptorGrayTextColor(descriptor);
-        FormatGroundItemLabelText(descriptor.Name, L"%ls %ls", SkillAttribute[30 + ItemLevel].Name, I18N::Game::Jewel);
+        FormatGroundItemLabelText(descriptor.Name, I18N::Game::SJewel, SkillAttribute[30 + ItemLevel].Name);
     }
     else if (COMGEM::NOGEM != COMGEM::Check_Jewel_Com(o->Type, true))
     {
@@ -6526,7 +6541,7 @@ void BuildGroundItemLabelDescriptor(OBJECT* o, ITEM* ip, GroundItemLabelDescript
         {
             if (SommonTable[ItemLevel] == MonsterScript[i].Type)
             {
-                FormatGroundItemLabelText(descriptor.Name, L"%ls %ls", MonsterScript[i].Name, I18N::Game::TransformationRing);
+                FormatGroundItemLabelText(descriptor.Name, I18N::Game::STransformationRing, MonsterScript[i].Name);
                 break;
             }
         }
@@ -10788,22 +10803,54 @@ void CreateGuildMark(int nMarkIndex, bool blend)
     {
         switch (i)
         {
-        case 0:MarkColor[i] = (alpha << 24) + (0 << 16) + (0 << 8) + (0); break;
-        case 1:MarkColor[i] = (255 << 24) + (0 << 16) + (0 << 8) + (0); break;
-        case 2:MarkColor[i] = (255 << 24) + (128 << 16) + (128 << 8) + (128); break;
-        case 3:MarkColor[i] = (255 << 24) + (255 << 16) + (255 << 8) + (255); break;
-        case 4:MarkColor[i] = (255 << 24) + (0 << 16) + (0 << 8) + (255); break;
-        case 5:MarkColor[i] = (255 << 24) + (0 << 16) + (128 << 8) + (255); break;
-        case 6:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (255); break;
-        case 7:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (128); break;
-        case 8:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (0); break;
-        case 9:MarkColor[i] = (255 << 24) + (128 << 16) + (255 << 8) + (0); break;
-        case 10:MarkColor[i] = (255 << 24) + (255 << 16) + (255 << 8) + (0); break;
-        case 11:MarkColor[i] = (255 << 24) + (255 << 16) + (128 << 8) + (0); break;
-        case 12:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (0); break;
-        case 13:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (128); break;
-        case 14:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (255); break;
-        case 15:MarkColor[i] = (255 << 24) + (128 << 16) + (0 << 8) + (255); break;
+        case 0:
+            MarkColor[i] = (static_cast<unsigned>(alpha) << 24) + (0 << 16) + (0 << 8) + (0);
+            break;
+        case 1:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (0 << 8) + (0);
+            break;
+        case 2:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (128 << 8) + (128);
+            break;
+        case 3:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (255 << 8) + (255);
+            break;
+        case 4:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (0 << 8) + (255);
+            break;
+        case 5:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (128 << 8) + (255);
+            break;
+        case 6:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (255);
+            break;
+        case 7:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (128);
+            break;
+        case 8:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (0);
+            break;
+        case 9:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (255 << 8) + (0);
+            break;
+        case 10:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (255 << 8) + (0);
+            break;
+        case 11:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (128 << 8) + (0);
+            break;
+        case 12:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (0);
+            break;
+        case 13:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (128);
+            break;
+        case 14:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (255);
+            break;
+        case 15:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (0 << 8) + (255);
+            break;
         }
     }
     BYTE* MarkBuffer = GuildMark[nMarkIndex].Mark;
@@ -10845,22 +10892,54 @@ void CreateCastleMark(int Type, BYTE* buffer, bool blend)
     {
         switch (i)
         {
-        case 0:MarkColor[i] = (alpha << 24) + (0 << 16) + (0 << 8) + (0); break;
-        case 1:MarkColor[i] = (255 << 24) + (0 << 16) + (0 << 8) + (0); break;
-        case 2:MarkColor[i] = (255 << 24) + (128 << 16) + (128 << 8) + (128); break;
-        case 3:MarkColor[i] = (255 << 24) + (255 << 16) + (255 << 8) + (255); break;
-        case 4:MarkColor[i] = (255 << 24) + (0 << 16) + (0 << 8) + (255); break;//빨
-        case 5:MarkColor[i] = (255 << 24) + (0 << 16) + (128 << 8) + (255); break;//
-        case 6:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (255); break;//노
-        case 7:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (128); break;//
-        case 8:MarkColor[i] = (255 << 24) + (0 << 16) + (255 << 8) + (0); break;//초
-        case 9:MarkColor[i] = (255 << 24) + (128 << 16) + (255 << 8) + (0); break;//
-        case 10:MarkColor[i] = (255 << 24) + (255 << 16) + (255 << 8) + (0); break;//청
-        case 11:MarkColor[i] = (255 << 24) + (255 << 16) + (128 << 8) + (0); break;//
-        case 12:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (0); break;//파
-        case 13:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (128); break;//
-        case 14:MarkColor[i] = (255 << 24) + (255 << 16) + (0 << 8) + (255); break;//보
-        case 15:MarkColor[i] = (255 << 24) + (128 << 16) + (0 << 8) + (255); break;//
+        case 0:
+            MarkColor[i] = (static_cast<unsigned>(alpha) << 24) + (0 << 16) + (0 << 8) + (0);
+            break;
+        case 1:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (0 << 8) + (0);
+            break;
+        case 2:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (128 << 8) + (128);
+            break;
+        case 3:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (255 << 8) + (255);
+            break;
+        case 4:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (0 << 8) + (255);
+            break; // 빨
+        case 5:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (128 << 8) + (255);
+            break; //
+        case 6:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (255);
+            break; // 노
+        case 7:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (128);
+            break; //
+        case 8:
+            MarkColor[i] = (255u << 24) + (0 << 16) + (255 << 8) + (0);
+            break; // 초
+        case 9:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (255 << 8) + (0);
+            break; //
+        case 10:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (255 << 8) + (0);
+            break; // 청
+        case 11:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (128 << 8) + (0);
+            break; //
+        case 12:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (0);
+            break; // 파
+        case 13:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (128);
+            break; //
+        case 14:
+            MarkColor[i] = (255u << 24) + (255 << 16) + (0 << 8) + (255);
+            break; // 보
+        case 15:
+            MarkColor[i] = (255u << 24) + (128 << 16) + (0 << 8) + (255);
+            break; //
         }
     }
     BYTE MarkBuffer[32 * 32];
@@ -10890,11 +10969,12 @@ void CreateCastleMark(int Type, BYTE* buffer, bool blend)
             }
             else if (j<3 || j>(Width - 4) || i<10 || i>(Height - 10))
             {
-                *((unsigned int*)(Buffer + offset)) = (255 << 24) + (0 << 16) + ((int)(50 + i / 100.f * 160) << 8) + (50 + i / 100.f * 255);
+                *((unsigned int*)(Buffer + offset)) =
+                    (255u << 24) + (0 << 16) + ((int)(50 + i / 100.f * 160) << 8) + (50 + i / 100.f * 255);
             }
             else
             {
-                *((unsigned int*)(Buffer + offset)) = (255 << 24) + (i << 16) + (i << 8) + (i);
+                *((unsigned int*)(Buffer + offset)) = (255u << 24) + (i << 16) + (i << 8) + (i);
             }
             offset += 4;
         }

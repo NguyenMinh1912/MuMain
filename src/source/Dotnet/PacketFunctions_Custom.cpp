@@ -36,6 +36,206 @@ void PacketFunctions_ClientToServer_Custom::SendLogin(const wchar_t* username, c
                      clientSerial);
 }
 
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendIncreaseCharacterStatPointMultipleFn)(int32_t, BYTE, uint16_t);
+
+void PacketFunctions_ClientToServer_Custom::SendIncreaseCharacterStatPointMultiple(CharacterStatAttribute statType,
+                                                                                   uint16_t amount)
+{
+    static SendIncreaseCharacterStatPointMultipleFn dotnet_SendIncreaseCharacterStatPointMultiple = nullptr;
+    if (!dotnet_SendIncreaseCharacterStatPointMultiple)
+    {
+        dotnet_SendIncreaseCharacterStatPointMultiple = LoadManagedSymbol<SendIncreaseCharacterStatPointMultipleFn>(
+            "ConnectionManager_SendIncreaseCharacterStatPointMultiple");
+        if (!dotnet_SendIncreaseCharacterStatPointMultiple)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendIncreaseCharacterStatPointMultiple(this->GetHandle(), static_cast<BYTE>(statType), amount);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendAddMasterSkillPointMultipleFn)(int32_t, uint16_t, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendAddMasterSkillPointMultiple(uint16_t skillId, BYTE amount)
+{
+    static SendAddMasterSkillPointMultipleFn dotnet_SendAddMasterSkillPointMultiple = nullptr;
+    if (!dotnet_SendAddMasterSkillPointMultiple)
+    {
+        dotnet_SendAddMasterSkillPointMultiple =
+            LoadManagedSymbol<SendAddMasterSkillPointMultipleFn>("ConnectionManager_SendAddMasterSkillPointMultiple");
+        if (!dotnet_SendAddMasterSkillPointMultiple)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendAddMasterSkillPointMultiple(this->GetHandle(), skillId, amount);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendResetConfirmationFn)(int32_t, BYTE, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendResetConfirmation(BYTE resetTypeIndex, bool accepted)
+{
+    static SendResetConfirmationFn dotnet_SendResetConfirmation = nullptr;
+    if (!dotnet_SendResetConfirmation)
+    {
+        dotnet_SendResetConfirmation =
+            LoadManagedSymbol<SendResetConfirmationFn>("ConnectionManager_SendResetConfirmation");
+        if (!dotnet_SendResetConfirmation)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendResetConfirmation(this->GetHandle(), resetTypeIndex, accepted ? 1 : 0);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankMoveValueFn)(int32_t, BYTE, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendBankMoveValue(bool deposit, Net::Bank::Currency currency,
+                                                              int64_t amount)
+{
+    static SendBankMoveValueFn dotnet_SendBankMoveValue = nullptr;
+    if (!dotnet_SendBankMoveValue)
+    {
+        dotnet_SendBankMoveValue = LoadManagedSymbol<SendBankMoveValueFn>("ConnectionManager_SendBankMoveValue");
+        if (!dotnet_SendBankMoveValue)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankMoveValue(this->GetHandle(), deposit ? 1 : 0, static_cast<BYTE>(currency), amount);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketRegisterItemFn)(int32_t, BYTE, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketRegisterItem(BYTE bankSlot, Net::Bank::Currency priceCurrency,
+                                                                   int64_t price)
+{
+    static SendMarketRegisterItemFn dotnet_SendMarketRegisterItem = nullptr;
+    if (!dotnet_SendMarketRegisterItem)
+    {
+        dotnet_SendMarketRegisterItem =
+            LoadManagedSymbol<SendMarketRegisterItemFn>("ConnectionManager_SendMarketRegisterItem");
+        if (!dotnet_SendMarketRegisterItem)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketRegisterItem(this->GetHandle(), bankSlot, static_cast<BYTE>(priceCurrency), price);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketRegisterCurrencyFn)(int32_t, BYTE, int64_t, BYTE, int64_t);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketRegisterCurrency(Net::Bank::Currency offeredCurrency,
+                                                                       int64_t offeredAmount,
+                                                                       Net::Bank::Currency priceCurrency, int64_t price)
+{
+    static SendMarketRegisterCurrencyFn dotnet_SendMarketRegisterCurrency = nullptr;
+    if (!dotnet_SendMarketRegisterCurrency)
+    {
+        dotnet_SendMarketRegisterCurrency =
+            LoadManagedSymbol<SendMarketRegisterCurrencyFn>("ConnectionManager_SendMarketRegisterCurrency");
+        if (!dotnet_SendMarketRegisterCurrency)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketRegisterCurrency(this->GetHandle(), static_cast<BYTE>(offeredCurrency), offeredAmount,
+                                      static_cast<BYTE>(priceCurrency), price);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListingRequestFn)(int32_t, const BYTE*);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketBuy(const BYTE* listingId)
+{
+    static SendMarketListingRequestFn dotnet_SendMarketBuy = nullptr;
+    if (!dotnet_SendMarketBuy)
+    {
+        dotnet_SendMarketBuy = LoadManagedSymbol<SendMarketListingRequestFn>("ConnectionManager_SendMarketBuy");
+        if (!dotnet_SendMarketBuy)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketBuy(this->GetHandle(), listingId);
+}
+
+void PacketFunctions_ClientToServer_Custom::SendMarketCancel(const BYTE* listingId)
+{
+    static SendMarketListingRequestFn dotnet_SendMarketCancel = nullptr;
+    if (!dotnet_SendMarketCancel)
+    {
+        dotnet_SendMarketCancel = LoadManagedSymbol<SendMarketListingRequestFn>("ConnectionManager_SendMarketCancel");
+        if (!dotnet_SendMarketCancel)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketCancel(this->GetHandle(), listingId);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListFn)(int32_t, BYTE, BYTE, BYTE, const char16_t*, BYTE, BYTE, BYTE,
+                                                          BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly,
+                                                           const wchar_t* nameFilter, BYTE offerKindFilter,
+                                                           BYTE classFilter, BYTE itemCategoryFilter, BYTE setFilter)
+{
+    static SendMarketListFn dotnet_SendMarketList = nullptr;
+    if (!dotnet_SendMarketList)
+    {
+        dotnet_SendMarketList = LoadManagedSymbol<SendMarketListFn>("ConnectionManager_SendMarketList");
+        if (!dotnet_SendMarketList)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendMarketList(this->GetHandle(), page, priceCurrencyFilter, ownOffersOnly ? 1 : 0, MU_C16(nameFilter),
+                          offerKindFilter, classFilter, itemCategoryFilter, setFilter);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankDialogFn)(int32_t, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendBankDialog(bool open)
+{
+    static SendBankDialogFn dotnet_SendBankDialog = nullptr;
+    if (!dotnet_SendBankDialog)
+    {
+        dotnet_SendBankDialog = LoadManagedSymbol<SendBankDialogFn>("ConnectionManager_SendBankDialog");
+        if (!dotnet_SendBankDialog)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankDialog(this->GetHandle(), open ? 1 : 0);
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankLedgerFn)(int32_t, BYTE);
+
+void PacketFunctions_ClientToServer_Custom::SendBankLedger(BYTE page)
+{
+    static SendBankLedgerFn dotnet_SendBankLedger = nullptr;
+    if (!dotnet_SendBankLedger)
+    {
+        dotnet_SendBankLedger = LoadManagedSymbol<SendBankLedgerFn>("ConnectionManager_SendBankLedger");
+        if (!dotnet_SendBankLedger)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendBankLedger(this->GetHandle(), page);
+}
+
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendAuthenticateExtFn)(int32_t, uint16_t, uint32_t);
 
 void PacketFunctions_ChatServer_Custom::SendAuthenticateExt(uint16_t roomId, uint32_t token)

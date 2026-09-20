@@ -50,6 +50,20 @@ namespace SEASON3B
                    int maxVisibleItems = 0);
 
         void SetPos(int x, int y) { m_X = x; m_Y = y; }
+
+        /**
+         * @brief Sets the lowest y the open list may reach, in UI coordinates.
+         *
+         * A combo which stands near the bottom of its window has no room under it for its list:
+         * opened downwards the list is drawn past the edge of the screen, where the rows at the
+         * end of it cannot be read or clicked. Given a limit, the combo opens upwards instead
+         * whenever the list would cross it. Pass 0 (the default) to always open downwards.
+         */
+        void SetBottomLimit(int bottomLimit)
+        {
+            m_BottomLimit = bottomLimit;
+        }
+
         void SetSelectedIndex(int idx);
         int  GetSelectedIndex() const { return m_SelectedIndex; }
 
@@ -91,11 +105,14 @@ namespace SEASON3B
         int m_MaxVisibleItems = 0;  // 0 = show all, no scrollbar
         int m_ScrollOffset = 0;     // index of the first visible row
 
+        int m_BottomLimit = 0; // 0 = no limit, the list always opens downwards
+
         // Geometry helpers -- all use UI-space coordinates.
         int  GetVisibleCount() const;       // Rows actually rendered in the open list
         int  GetMaxScrollOffset() const;
         bool IsScrollable() const;
-        int  GetListY() const { return m_Y + m_ItemHeight; }
+        bool OpensUpwards() const; // True when the list does not fit under the field
+        int GetListY() const;      // Top of the open list, above or below the field
         int  GetListHeight() const { return GetVisibleCount() * m_ItemHeight; }
         int  GetItemIndexAtMouse() const;   // -1 if no visible item hit
         void ClampScrollOffset();

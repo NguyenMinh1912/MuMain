@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Core/Utilities/Log/MuLogger.h"
+#include "Network/Server/BankPackets.h"
 #include "UI/Chat/Chat.h"
 #include <memory>
 #include "UI/Legacy/UIManager.h"
@@ -1762,6 +1763,10 @@ void ReceiveTradeInventoryExtended(std::span<const BYTE> ReceiveBuffer)
         g_pMixInventory->SetMixState(SEASON3B::CNewUIMixInventory::MIX_FINISHED);
         g_pMixInventory->DeleteAllItems();
     }
+    else if (Data->SubCode == Net::Bank::WindowValue)
+    {
+        g_pBankWindow->DeleteAllItems();
+    }
     else
     {
         for (auto& i : ShopInventory)
@@ -1795,6 +1800,10 @@ void ReceiveTradeInventoryExtended(std::span<const BYTE> ReceiveBuffer)
         if (Data->SubCode == 3 || Data->SubCode == 5)
         {
             g_pMixInventory->InsertItem(itemindex, itemData);
+        }
+        else if (Data->SubCode == Net::Bank::WindowValue)
+        {
+            g_pBankWindow->InsertItem(itemindex, itemData);
         }
         else
         {
@@ -6276,12 +6285,14 @@ BOOL ReceiveEquipmentItemExtended(std::span<const BYTE> ReceiveBuffer)
             {
                 g_pStorageInventory->ProcessStorageItemAutoMoveSuccess();
                 g_pStorageInventoryExt->ProcessStorageItemAutoMoveSuccess();
+                g_pBankWindow->ProcessAutoMoveSuccess();
                 shouldResyncInventory = !g_pMyInventory->InsertItem(itemindex, itemData);
             }
             else if (IsInventoryExtensionSlot(itemindex))
             {
                 g_pStorageInventory->ProcessStorageItemAutoMoveSuccess();
                 g_pStorageInventoryExt->ProcessStorageItemAutoMoveSuccess();
+                g_pBankWindow->ProcessAutoMoveSuccess();
                 shouldResyncInventory = !g_pMyInventoryExt->InsertItem(itemindex, itemData);
             }
             else if (IsMyShopSlot(itemindex))
@@ -6308,6 +6319,10 @@ BOOL ReceiveEquipmentItemExtended(std::span<const BYTE> ReceiveBuffer)
             {
                 g_pStorageInventoryExt->ProcessToReceiveStorageItems(Data->Index, itemData);
             }
+        }
+        else if (storageType == STORAGE_TYPE::BANK)
+        {
+            g_pBankWindow->ProcessToReceiveBankItems(Data->Index, itemData);
         }
         if (storageType == STORAGE_TYPE::CHAOS_MIX ||
             (storageType >= STORAGE_TYPE::TRAINER_MIX && storageType <= STORAGE_TYPE::DETACH_SOCKET_MIX))
@@ -6416,6 +6431,11 @@ BOOL ReceiveTalk(const BYTE* ReceiveBuffer, BOOL bEncrypted)
     {
     case 2:
         g_pNewUISystem->Show(SEASON3B::INTERFACE_STORAGE);
+        break;
+
+    case Net::Bank::WindowValue:
+        // Not part of the original protocol: the bank of the account.
+        g_pNewUISystem->Show(SEASON3B::INTERFACE_BANK);
         break;
 
     case 3:
@@ -7491,6 +7511,49 @@ void ReceiveGuild(const BYTE* ReceiveBuffer)
     SEASON3B::CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CGuildRequestMsgBoxLayout), &pMsgBox);
     pMsgBox->AddMsg(CharactersClient[FindCharacterIndex(GuildPlayerKey)].ID);
     pMsgBox->AddMsg(I18N::Game::YouHaveReceivedAnOfferToJoinAGuild);
+}
+
+// The server announces a character reset with its costs and rewards (0xF3, 0xE0) and only performs it
+// after the answer of this dialog. The message arrives as one utf-8 string whose lines are separated by
+// line feeds, so that the server decides what the player reads, in his language.
+void ReceiveResetConfirmationRequest(const BYTE* ReceiveBuffer, int Size)
+{
+    if (Size <= 5)
+    {
+        return;
+    }
+
+    SEASON3B::g_byPendingResetTypeIndex = ReceiveBuffer[4];
+
+    const int messageLength = Size - 5;
+    std::vector<char> message(static_cast<size_t>(messageLength) + 1, '\0');
+    memcpy(message.data(), &ReceiveBuffer[5], static_cast<size_t>(messageLength));
+
+    std::vector<wchar_t> wideMessage(message.size(), L'\0');
+    CMultiLanguage::ConvertFromUtf8(wideMessage.data(), message.data(), messageLength);
+
+    SEASON3B::CNewUICommonMessageBox* pMsgBox;
+    SEASON3B::CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CResetConfirmMsgBoxLayout), &pMsgBox);
+
+    std::wstring text(wideMessage.data());
+    size_t lineStart = 0;
+    while (lineStart <= text.size())
+    {
+        const size_t lineEnd = text.find(L'\n', lineStart);
+        const std::wstring line =
+            text.substr(lineStart, lineEnd == std::wstring::npos ? std::wstring::npos : lineEnd - lineStart);
+        if (!line.empty())
+        {
+            pMsgBox->AddMsg(line.c_str());
+        }
+
+        if (lineEnd == std::wstring::npos)
+        {
+            break;
+        }
+
+        lineStart = lineEnd + 1;
+    }
 }
 
 void ReceiveGuildResult(const BYTE* ReceiveBuffer)
@@ -10228,20 +10291,18 @@ void ReceiveEventChipInfomation(const BYTE* ReceiveBuffer)
     }
 
     if (g_bEventChipDialogEnable == EVENT_SCRATCH_TICKET)
+    {
+        ZeroMemory(g_strGiftName, sizeof(char) * 64);
 
-        if (g_bEventChipDialogEnable == EVENT_SCRATCH_TICKET)
-        {
-            ZeroMemory(g_strGiftName, sizeof(char) * 64);
-
-            ClearInput(FALSE);
-            InputTextMax[0] = 12;
-            InputNumber = 1;
-            InputEnable = false;
-            GoldInputEnable = false;
-            InputGold = 0;
-            StorageGoldFlag = 0;
-            g_bScratchTicket = true;
-        }
+        ClearInput(FALSE);
+        InputTextMax[0] = 12;
+        InputNumber = 1;
+        InputEnable = false;
+        GoldInputEnable = false;
+        InputGold = 0;
+        StorageGoldFlag = 0;
+        g_bScratchTicket = true;
+    }
 }
 
 void ReceiveEventChip(const BYTE* ReceiveBuffer)
@@ -13691,6 +13752,10 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         case 0x53:
             Receive_Master_SetSkillList((PMSG_MASTER_SKILL_LIST_SEND*)ReceiveBuffer);
             break;
+        case 0xE0:
+            // Not part of the original protocol: the confirmation of a character reset.
+            ReceiveResetConfirmationRequest(ReceiveBuffer, Size);
+            break;
         }
         break;
     }
@@ -14324,6 +14389,12 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         }
     }
     break;
+    case Net::Bank::PacketCode:
+        // Not part of the original protocol: the bank of the account and the market between
+        // players. The whole group is parsed in one place, which only fills the store the bank
+        // dialog draws from.
+        Net::Bank::HandlePacket(received_span);
+        break;
     case 0x3F:
     {
         int subcode;
@@ -15127,6 +15198,14 @@ void InsertBuffLogicalEffect(eBuffState buff, OBJECT* o, const int bufftime)
 {
     if (o && o == &Hero->Object)
     {
+        // Whenever the server tells us how long the buff runs, register it here, so that every
+        // buff item shows its remaining time - not only the ones listed in the switch below,
+        // which otherwise fall back to the fixed (mostly 30 minute) time of ItemAddOption.bmd.
+        if (bufftime > 0)
+        {
+            g_RegisterBuffTime(buff, bufftime);
+        }
+
         switch (buff)
         {
         case eBuff_Hellowin1:
@@ -15310,6 +15389,10 @@ void ClearBuffLogicalEffect(eBuffState buff, OBJECT* o)
 {
     if (o && o == &Hero->Object)
     {
+        // Counterpart of the generic registration in InsertBuffLogicalEffect: the timer of a
+        // buff which isn't listed below has to be dropped as well.
+        g_UnRegisterBuffTime(buff);
+
         switch (buff)
         {
         case eBuff_Hellowin1:

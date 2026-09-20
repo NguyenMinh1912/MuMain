@@ -9657,6 +9657,9 @@
     <value>Transform into Panda.</value>
     <comment>legacy_id=2743</comment>
   </data>
+  <data name="Zen increase %d%%" xml:space="preserve">
+    <value>Zen increase %d%%</value>
+  </data>
   <data name="Zen increase 50%%" xml:space="preserve">
     <value>Zen increase 50%%</value>
     <comment>legacy_id=2744</comment>
@@ -12969,5 +12972,290 @@
   </data>
   <data name="ChatCommandsUnknownCommand" xml:space="preserve">
     <value>This command is not available anymore.</value>
+  </data>
+  <data name="%s Jewel" xml:space="preserve">
+    <value>%s Jewel</value>
+  </data>
+  <data name="%s Transformation Ring" xml:space="preserve">
+    <value>%s Transformation Ring</value>
+  </data>
+  <data name="PvE" xml:space="preserve">
+    <value>PvE</value>
+  </data>
+  <data name="PvP" xml:space="preserve">
+    <value>PvP</value>
+  </data>
+  <data name="Full Strength" xml:space="preserve">
+    <value>Full Strength</value>
+  </data>
+  <data name="Full Energy" xml:space="preserve">
+    <value>Full Energy</value>
+  </data>
+  <data name="Full Command" xml:space="preserve">
+    <value>Full Command</value>
+  </data>
+  <data name="Support" xml:space="preserve">
+    <value>Support</value>
+  </data>
+  <data name="Suggest" xml:space="preserve">
+    <value>Suggest</value>
+  </data>
+  <data name="Suggested stat points" xml:space="preserve">
+    <value>Suggested stat points</value>
+  </data>
+  <data name="Click to switch build preset" xml:space="preserve">
+    <value>Click to switch build preset</value>
+  </data>
+  <data name="Add all points using the suggested build" xml:space="preserve">
+    <value>Add all points using the suggested build</value>
+  </data>
+  <data name="Bank" xml:space="preserve">
+    <value>Bank</value>
+  </data>
+  <data name="Bank storage" xml:space="preserve">
+    <value>Items</value>
+  </data>
+  <data name="Bank market" xml:space="preserve">
+    <value>Market</value>
+  </data>
+  <data name="Bank deposit everything" xml:space="preserve">
+    <value>Deposit</value>
+  </data>
+  <data name="Bank withdraw everything" xml:space="preserve">
+    <value>Withdraw</value>
+  </data>
+  <data name="Bank previous page" xml:space="preserve">
+    <value>Prev</value>
+  </data>
+  <data name="Bank next page" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Bank buy offer" xml:space="preserve">
+    <value>Buy</value>
+  </data>
+  <data name="Bank cancel offer" xml:space="preserve">
+    <value>Take back</value>
+  </data>
+  <data name="Bank has no offers" xml:space="preserve">
+    <value>No offers</value>
+  </data>
+  <data name="Bank page of" xml:space="preserve">
+    <value>Page %d/%d</value>
+  </data>
+  <data name="Bank refused the request" xml:space="preserve">
+    <value>The bank refused the request</value>
+  </data>
+  <data name="Bank enter the price" xml:space="preserve">
+    <value>Enter the price</value>
+  </data>
+  <data name="Bank enter the amount" xml:space="preserve">
+    <value>Enter the amount</value>
+  </data>
+  <data name="Bank offer" xml:space="preserve">
+    <value>Offer</value>
+  </data>
+  <data name="Bank select an item first" xml:space="preserve">
+    <value>Select an item of the bank first</value>
+  </data>
+  <data name="Bank short label" xml:space="preserve">
+    <value>Bank</value>
+  </data>
+  <data name="Bank take item" xml:space="preserve">
+    <value>Take out</value>
+  </data>
+  <data name="Bank values" xml:space="preserve">
+    <value>Values</value>
+  </data>
+  <data name="Bank money group" xml:space="preserve">
+    <value>MONEY</value>
+  </data>
+  <data name="Bank jewel group" xml:space="preserve">
+    <value>JEWELS</value>
+  </data>
+  <data name="Bank seller column" xml:space="preserve">
+    <value>Seller</value>
+  </data>
+  <data name="Bank item column" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="Bank billions suffix" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="Bank filter any kind" xml:space="preserve">
+    <value>Any kind</value>
+  </data>
+  <data name="Bank filter any class" xml:space="preserve">
+    <value>Any class</value>
+  </data>
+  <data name="Bank filter any set" xml:space="preserve">
+    <value>Any set</value>
+  </data>
+  <data name="Bank filter any currency" xml:space="preserve">
+    <value>Any currency</value>
+  </data>
+  <data name="Bank filter items" xml:space="preserve">
+    <value>Items</value>
+  </data>
+  <data name="Bank filter currency" xml:space="preserve">
+    <value>Currency</value>
+  </data>
+  <data name="Bank filter wings" xml:space="preserve">
+    <value>Wings</value>
+  </data>
+  <data name="Bank filter weapons" xml:space="preserve">
+    <value>Weapons</value>
+  </data>
+  <data name="Bank filter shields" xml:space="preserve">
+    <value>Shields</value>
+  </data>
+  <data name="Bank filter jewelry" xml:space="preserve">
+    <value>Jewelry</value>
+  </data>
+  <data name="Bank filter other items" xml:space="preserve">
+    <value>Other items</value>
+  </data>
+  <data name="Bank price column" xml:space="preserve">
+    <value>Price</value>
+  </data>
+  <data name="Bank my offers only" xml:space="preserve">
+    <value>My offers only</value>
+  </data>
+  <data name="Bank select a value first" xml:space="preserve">
+    <value>Select a currency first</value>
+  </data>
+  <data name="Bank is full" xml:space="preserve">
+    <value>The bank is full</value>
+  </data>
+  <data name="Bank box count" xml:space="preserve">
+    <value>%d/%d boxes</value>
+  </data>
+  <data name="Bank currency zen" xml:space="preserve">
+    <value>Zen</value>
+  </data>
+  <data name="Bank currency wcoin c" xml:space="preserve">
+    <value>WCoin C</value>
+  </data>
+  <data name="Bank currency wcoin p" xml:space="preserve">
+    <value>WCoin P</value>
+  </data>
+  <data name="Bank currency goblin points" xml:space="preserve">
+    <value>Goblin Points</value>
+  </data>
+  <data name="Bank currency jewel of bless" xml:space="preserve">
+    <value>Jewel of Bless</value>
+  </data>
+  <data name="Bank currency jewel of soul" xml:space="preserve">
+    <value>Jewel of Soul</value>
+  </data>
+  <data name="Bank currency jewel of life" xml:space="preserve">
+    <value>Jewel of Life</value>
+  </data>
+  <data name="Bank currency jewel of creation" xml:space="preserve">
+    <value>Jewel of Creation</value>
+  </data>
+  <data name="Bank currency jewel of chaos" xml:space="preserve">
+    <value>Jewel of Chaos</value>
+  </data>
+  <data name="Bank not enough value" xml:space="preserve">
+    <value>The bank does not hold that much</value>
+  </data>
+  <data name="Bank offer is gone" xml:space="preserve">
+    <value>That offer is no longer on the market</value>
+  </data>
+  <data name="Bank too many offers" xml:space="preserve">
+    <value>You already have as many offers as you may</value>
+  </data>
+  <data name="Bank price in" xml:space="preserve">
+    <value>Price in</value>
+  </data>
+  <data name="Bank price currency must differ" xml:space="preserve">
+    <value>Ask for something other than what you are offering</value>
+  </data>
+  <data name="Bank own offer" xml:space="preserve">
+    <value>That offer is your own</value>
+  </data>
+  <data name="Bank ledger" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="Bank time column" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Bank type column" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Bank detail column" xml:space="preserve">
+    <value>Detail</value>
+  </data>
+  <data name="Bank amount column" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="Bank has no ledger entries" xml:space="preserve">
+    <value>The bank has booked nothing yet</value>
+  </data>
+  <data name="Bank balance after" xml:space="preserve">
+    <value>Balance after: %ls %ls</value>
+  </data>
+  <data name="Bank page number" xml:space="preserve">
+    <value>Page %d</value>
+  </data>
+  <data name="Bank refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Bank ledger deposit" xml:space="preserve">
+    <value>Deposit</value>
+  </data>
+  <data name="Bank ledger withdrawal" xml:space="preserve">
+    <value>Withdrawal</value>
+  </data>
+  <data name="Bank ledger transfer out" xml:space="preserve">
+    <value>Sent</value>
+  </data>
+  <data name="Bank ledger transfer in" xml:space="preserve">
+    <value>Received</value>
+  </data>
+  <data name="Bank ledger fee" xml:space="preserve">
+    <value>Fee</value>
+  </data>
+  <data name="Bank ledger market listed" xml:space="preserve">
+    <value>Listed</value>
+  </data>
+  <data name="Bank ledger market sale" xml:space="preserve">
+    <value>Sold</value>
+  </data>
+  <data name="Bank ledger market purchase" xml:space="preserve">
+    <value>Bought</value>
+  </data>
+  <data name="Bank ledger market return" xml:space="preserve">
+    <value>Returned</value>
+  </data>
+  <data name="Bank ledger correction" xml:space="preserve">
+    <value>Correction</value>
+  </data>
+  <data name="Bank currency short zen" xml:space="preserve">
+    <value>Zen</value>
+  </data>
+  <data name="Bank currency short wcoin c" xml:space="preserve">
+    <value>WC-C</value>
+  </data>
+  <data name="Bank currency short wcoin p" xml:space="preserve">
+    <value>WC-P</value>
+  </data>
+  <data name="Bank currency short goblin points" xml:space="preserve">
+    <value>GP</value>
+  </data>
+  <data name="Bank currency short jewel of bless" xml:space="preserve">
+    <value>Bless</value>
+  </data>
+  <data name="Bank currency short jewel of soul" xml:space="preserve">
+    <value>Soul</value>
+  </data>
+  <data name="Bank currency short jewel of life" xml:space="preserve">
+    <value>Life</value>
+  </data>
+  <data name="Bank currency short jewel of creation" xml:space="preserve">
+    <value>Creation</value>
+  </data>
+  <data name="Bank currency short jewel of chaos" xml:space="preserve">
+    <value>Chaos</value>
   </data>
 </root>

@@ -1069,6 +1069,51 @@ namespace SEASON3B
         static CALLBACK_RESULT ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
     };
 
+    /// <summary>
+    /// Asks for the price of something the player offers on the market of the bank.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the original client. The two bank dialogs only read a number and hand it back
+    /// to the bank window; what is offered and in which currency is what the window already knows,
+    /// so the dialogs stay free of the rules.
+    /// </remarks>
+    class CBankPriceMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
+    {
+        static constexpr float INPUT_WIDTH = 110.0f;
+        static constexpr float INPUT_HEIGHT = 14.0f;
+
+        /// <summary>Enough digits for the largest balance a bank may hold.</summary>
+        static constexpr int INPUT_TEXTLIMIT = 18;
+
+    public:
+        bool SetLayout();
+        static CALLBACK_RESULT ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+        static CALLBACK_RESULT OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+        static CALLBACK_RESULT CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+
+    private:
+        static CALLBACK_RESULT ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+    };
+
+    /// <summary>
+    /// Asks how much of a currency goes into the bank or comes out of it.
+    /// </summary>
+    class CBankAmountMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
+    {
+        static constexpr float INPUT_WIDTH = 110.0f;
+        static constexpr float INPUT_HEIGHT = 14.0f;
+        static constexpr int INPUT_TEXTLIMIT = 18;
+
+    public:
+        bool SetLayout();
+        static CALLBACK_RESULT ReturnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+        static CALLBACK_RESULT OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+        static CALLBACK_RESULT CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+
+    private:
+        static CALLBACK_RESULT ProcessOk(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+    };
+
     class CCastleWithdrawMsgBoxLayout : public TMsgBoxLayout<CNewUITextInputMsgBox>
     {
     public:

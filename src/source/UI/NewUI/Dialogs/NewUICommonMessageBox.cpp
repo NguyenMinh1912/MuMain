@@ -1065,6 +1065,46 @@ CALLBACK_RESULT SEASON3B::CGuildRequestMsgBoxLayout::CancelBtnDown(class CNewUIM
     return CALLBACK_BREAK;
 }
 
+BYTE SEASON3B::g_byPendingResetTypeIndex = 0;
+
+bool SEASON3B::CResetConfirmMsgBoxLayout::SetLayout()
+{
+    CNewUICommonMessageBox* pMsgBox = GetMsgBox();
+    if (0 == pMsgBox)
+        return false;
+
+    if (false == pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL))
+        return false;
+
+    pMsgBox->AddCallbackFunc(CResetConfirmMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
+    pMsgBox->AddCallbackFunc(CResetConfirmMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
+    pMsgBox->AddCallbackFunc(CResetConfirmMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_PRESSKEY_ESC);
+    pMsgBox->AddCallbackFunc(CResetConfirmMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
+    return true;
+}
+
+CALLBACK_RESULT SEASON3B::CResetConfirmMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                               const leaf::xstreambuf& xParam)
+{
+    SocketClient->ToGameServer()->SendResetConfirmation(SEASON3B::g_byPendingResetTypeIndex, true);
+
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
+
+    return CALLBACK_BREAK;
+}
+
+CALLBACK_RESULT SEASON3B::CResetConfirmMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                                   const leaf::xstreambuf& xParam)
+{
+    SocketClient->ToGameServer()->SendResetConfirmation(SEASON3B::g_byPendingResetTypeIndex, false);
+
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
+
+    return CALLBACK_BREAK;
+}
+
 bool SEASON3B::CGuildFireMsgBoxLayout::SetLayout()
 {
     CNewUICommonMessageBox* pMsgBox = GetMsgBox();
@@ -2980,10 +3020,10 @@ bool SEASON3B::CCry_Wolf_Result_Set_Temple::SetLayout()
 
     mu_swprintf(Text, L"%ls    %ls    %ls    %ls", I18N::Game::Rank, I18N::Game::Character, I18N::Game::Class, I18N::Game::Score);
 
-    int TextColor = (255 << 24) + (21 << 16) + (148 << 8) + (255);
+    int TextColor = (255u << 24) + (21 << 16) + (148 << 8) + (255);
     pMsgBox->AddMsg(Text, TextColor);
 
-    TextColor = (255 << 24) + (255 << 16) + (255 << 8) + (255);
+    TextColor = (255u << 24) + (255 << 16) + (255 << 8) + (255);
 
     for (int i = 0; i < 5; i++)
     {
@@ -2995,7 +3035,7 @@ bool SEASON3B::CCry_Wolf_Result_Set_Temple::SetLayout()
         pMsgBox->AddMsg(Text, TextColor);
     }
 
-    TextColor = (255 << 24) + (255 << 16) + (0 << 8) + (255);
+    TextColor = (255u << 24) + (255 << 16) + (0 << 8) + (255);
     pMsgBox->AddMsg(L"    ", TextColor);
     pMsgBox->AddMsg(L"    ", TextColor);
     pMsgBox->AddMsg(L"    ", TextColor);

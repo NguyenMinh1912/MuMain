@@ -29,26 +29,30 @@ namespace SEASON3B
             IMAGE_INVENTORY_MYSHOP_OPEN_BTN = BITMAP_MYSHOPINTERFACE_NEW_PERSONALINVENTORY_BEGIN + 1,
             IMAGE_INVENTORY_MYSHOP_CLOSE_BTN = BITMAP_MYSHOPINTERFACE_NEW_PERSONALINVENTORY_BEGIN + 2,
             IMAGE_INVENTORY_BACK = CNewUIMessageBoxMng::IMAGE_MSGBOX_BACK,
-            IMAGE_INVENTORY_BACK_TOP = BITMAP_INTERFACE_NEW_PERSONALINVENTORY_BEGIN,	//"newui_item_back01.tga"
-            IMAGE_INVENTORY_BACK_TOP2,	//"newui_item_back04.tga"
-            IMAGE_INVENTORY_BACK_LEFT,	//"newui_item_back02-L.tga"
-            IMAGE_INVENTORY_BACK_RIGHT,	//"newui_item_back02-R.tga"
-            IMAGE_INVENTORY_BACK_BOTTOM,	//"newui_item_back03.tga"
-            IMAGE_INVENTORY_ITEM_BOOT,	//"newui_item_boots.tga"
-            IMAGE_INVENTORY_ITEM_HELM,	//"newui_item_cap.tga"
-            IMAGE_INVENTORY_ITEM_FAIRY,	//"newui_item_fairy.tga"
-            IMAGE_INVENTORY_ITEM_WING,	//"newui_item_wing.tga"
-            IMAGE_INVENTORY_ITEM_RIGHT,	//"newui_item_weapon(L).tga"
-            IMAGE_INVENTORY_ITEM_LEFT,	//"newui_item_weapon(R).tga"
-            IMAGE_INVENTORY_ITEM_ARMOR,	//"newui_item_upper.tga"
-            IMAGE_INVENTORY_ITEM_GLOVES,	//"newui_item_gloves.tga"
-            IMAGE_INVENTORY_ITEM_PANTS,	//"newui_item_lower.tga"
-            IMAGE_INVENTORY_ITEM_RING,	//"newui_item_ring.tga"
-            IMAGE_INVENTORY_ITEM_NECKLACE,	//"newui_item_necklace.tga"
-            IMAGE_INVENTORY_MONEY,	//"newui_item_money.tga"
-            IMAGE_INVENTORY_EXIT_BTN, //"newui_exit_00.tga"
-            IMAGE_INVENTORY_REPAIR_BTN, //"newui_repair_00.tga"
-            IMAGE_INVENTORY_EXPAND_BTN, //"newui_expansion_btn.tga"
+            IMAGE_INVENTORY_BACK_TOP = BITMAP_INTERFACE_NEW_PERSONALINVENTORY_BEGIN, //"newui_item_back01.tga"
+            IMAGE_INVENTORY_BACK_TOP2,                                               //"newui_item_back04.tga"
+            IMAGE_INVENTORY_BACK_LEFT,                                               //"newui_item_back02-L.tga"
+            IMAGE_INVENTORY_BACK_RIGHT,                                              //"newui_item_back02-R.tga"
+            IMAGE_INVENTORY_BACK_BOTTOM,                                             //"newui_item_back03.tga"
+            IMAGE_INVENTORY_ITEM_BOOT,                                               //"newui_item_boots.tga"
+            IMAGE_INVENTORY_ITEM_HELM,                                               //"newui_item_cap.tga"
+            IMAGE_INVENTORY_ITEM_FAIRY,                                              //"newui_item_fairy.tga"
+            IMAGE_INVENTORY_ITEM_WING,                                               //"newui_item_wing.tga"
+            IMAGE_INVENTORY_ITEM_RIGHT,                                              //"newui_item_weapon(L).tga"
+            IMAGE_INVENTORY_ITEM_LEFT,                                               //"newui_item_weapon(R).tga"
+            IMAGE_INVENTORY_ITEM_ARMOR,                                              //"newui_item_upper.tga"
+            IMAGE_INVENTORY_ITEM_GLOVES,                                             //"newui_item_gloves.tga"
+            IMAGE_INVENTORY_ITEM_PANTS,                                              //"newui_item_lower.tga"
+            IMAGE_INVENTORY_ITEM_RING,                                               //"newui_item_ring.tga"
+            IMAGE_INVENTORY_ITEM_NECKLACE,                                           //"newui_item_necklace.tga"
+            IMAGE_INVENTORY_MONEY,                                                   //"newui_item_money.tga"
+            IMAGE_INVENTORY_EXIT_BTN,                                                //"newui_exit_00.tga"
+            IMAGE_INVENTORY_REPAIR_BTN,                                              //"newui_repair_00.tga"
+            IMAGE_INVENTORY_EXPAND_BTN,                                              //"newui_expansion_btn.tga"
+            // The bank button wears an icon like the rest of the row. The plate of the dialogs is
+            // cut 54x23 and the button takes its size as the piece to cut, so at 36x29 it showed a
+            // corner of one state and a stripe of the next one.
+            IMAGE_INVENTORY_BANK_BTN, //"newui_Bt_money01.tga"
         };
 
         enum MYSHOP_MODE
@@ -87,6 +91,7 @@ namespace SEASON3B
         CNewUIButton m_BtnExit;
         CNewUIButton m_BtnMyShop;
         CNewUIButton m_BtnExpand;
+        CNewUIButton m_BtnBank;
 
         MYSHOP_MODE m_MyShopMode;
         SEASON3B::REPAIR_MODE m_RepairMode;

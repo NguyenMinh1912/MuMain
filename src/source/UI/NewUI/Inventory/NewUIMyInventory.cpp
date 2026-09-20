@@ -419,10 +419,11 @@ void CNewUIMyInventory::SetPos(int x, int y)
     SetEquipmentSlotInfo();
 
     m_pNewInventoryCtrl->SetPos(x + 15, y + 200);
-    m_BtnExit.SetPos(m_Pos.x + 13, m_Pos.y + 391);
-    m_BtnRepair.SetPos(m_Pos.x + 50, m_Pos.y + 391);
-    m_BtnMyShop.SetPos(m_Pos.x + 87, m_Pos.y + 391);
-    m_BtnExpand.SetPos(m_Pos.x + 87 + 37, m_Pos.y + 391);
+    m_BtnExit.SetPos(m_Pos.x + 5, m_Pos.y + 391);
+    m_BtnRepair.SetPos(m_Pos.x + 42, m_Pos.y + 391);
+    m_BtnMyShop.SetPos(m_Pos.x + 79, m_Pos.y + 391);
+    m_BtnExpand.SetPos(m_Pos.x + 116, m_Pos.y + 391);
+    m_BtnBank.SetPos(m_Pos.x + 153, m_Pos.y + 391);
 }
 
 const POINT& CNewUIMyInventory::GetPos() const
@@ -473,15 +474,15 @@ bool CNewUIMyInventory::UpdateMouseEvent()
         && !UI::Scaling::BottomHudContainsWindowPoint(WindowWidth, WindowHeight,
                                                        g_fWindowMouseX, g_fWindowMouseY))
     {
-        if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_TRADE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_DEVILSQUARE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_BLOODCASTLE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_STORAGE) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_MYSHOP_INVENTORY) == true
-            || g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_LUCKYITEMWND) == true
-            || g_pNewUISystem->IsVisible(INTERFACE_PURCHASESHOP_INVENTORY) == true)
+        if (g_pNewUISystem->IsVisible(INTERFACE_NPCSHOP) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_TRADE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_DEVILSQUARE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_BLOODCASTLE) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_MIXINVENTORY) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_STORAGE) == true || g_pNewUISystem->IsVisible(INTERFACE_BANK) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_MYSHOP_INVENTORY) == true ||
+            g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_LUCKYITEMWND) == true ||
+            g_pNewUISystem->IsVisible(INTERFACE_PURCHASESHOP_INVENTORY) == true)
         {
             ResetMouseLButton();
             return false;
@@ -1179,20 +1180,25 @@ void CNewUIMyInventory::SetEquipmentSlotInfo()
 void CNewUIMyInventory::SetButtonInfo()
 {
     m_BtnExit.ChangeButtonImgState(true, IMAGE_INVENTORY_EXIT_BTN, false);
-    m_BtnExit.ChangeButtonInfo(m_Pos.x + 13, m_Pos.y + 391, 36, 29);
+    m_BtnExit.ChangeButtonInfo(m_Pos.x + 5, m_Pos.y + 391, 36, 29);
     m_BtnExit.ChangeToolTipText(&I18N::Game::CloseIV, true);
 
     m_BtnRepair.ChangeButtonImgState(true, IMAGE_INVENTORY_REPAIR_BTN, false);
-    m_BtnRepair.ChangeButtonInfo(m_Pos.x + 50, m_Pos.y + 391, 36, 29);
+    m_BtnRepair.ChangeButtonInfo(m_Pos.x + 42, m_Pos.y + 391, 36, 29);
     m_BtnRepair.ChangeToolTipText(&I18N::Game::RepairL, true);
 
     m_BtnMyShop.ChangeButtonImgState(true, IMAGE_INVENTORY_MYSHOP_OPEN_BTN, false);
-    m_BtnMyShop.ChangeButtonInfo(m_Pos.x + 87, m_Pos.y + 391, 36, 29);
+    m_BtnMyShop.ChangeButtonInfo(m_Pos.x + 79, m_Pos.y + 391, 36, 29);
     m_BtnMyShop.ChangeToolTipText(&I18N::Game::OpenPersonalStoreS, true);
 
     m_BtnExpand.ChangeButtonImgState(true, IMAGE_INVENTORY_EXPAND_BTN, false);
-    m_BtnExpand.ChangeButtonInfo(m_Pos.x + 87 + 37, m_Pos.y + 391, 36, 29);
+    m_BtnExpand.ChangeButtonInfo(m_Pos.x + 116, m_Pos.y + 391, 36, 29);
     m_BtnExpand.ChangeToolTipText(&I18N::Game::OpenExpandedInventoryK, true);
+
+    // The way to the bank of the account; it is not an npc, so the inventory is where it is reached.
+    m_BtnBank.ChangeButtonImgState(true, IMAGE_INVENTORY_BANK_BTN, false);
+    m_BtnBank.ChangeButtonInfo(m_Pos.x + 153, m_Pos.y + 391, 36, 29);
+    m_BtnBank.ChangeToolTipText(&I18N::Game::Bank, true);
 }
 
 void CNewUIMyInventory::LoadImages() const
@@ -1218,6 +1224,7 @@ void CNewUIMyInventory::LoadImages() const
     LoadBitmap(L"Interface\\newui_exit_00.tga", IMAGE_INVENTORY_EXIT_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_repair_00.tga", IMAGE_INVENTORY_REPAIR_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_expansion_btn.tga", IMAGE_INVENTORY_EXPAND_BTN, GL_LINEAR);
+    LoadBitmap(L"Interface\\newui_Bt_money01.tga", IMAGE_INVENTORY_BANK_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_Bt_openshop.tga", IMAGE_INVENTORY_MYSHOP_OPEN_BTN, GL_LINEAR);
     LoadBitmap(L"Interface\\newui_Bt_closeshop.tga", IMAGE_INVENTORY_MYSHOP_CLOSE_BTN, GL_LINEAR);
 }
@@ -1247,6 +1254,7 @@ void CNewUIMyInventory::UnloadImages()
     DeleteBitmap(IMAGE_INVENTORY_BACK_TOP);
     DeleteBitmap(IMAGE_INVENTORY_BACK);
     DeleteBitmap(IMAGE_INVENTORY_EXPAND_BTN);
+    DeleteBitmap(IMAGE_INVENTORY_BANK_BTN);
 }
 
 void CNewUIMyInventory::RenderFrame() const
@@ -1362,6 +1370,9 @@ void CNewUIMyInventory::RenderButtons()
         {
             m_BtnMyShop.Render();
         }
+        // Drawn under the same condition which lets it be clicked, so the row never offers a way
+        // to the bank while another window keeps the click for itself.
+        m_BtnBank.Render();
     }
     m_BtnExit.Render();
     m_BtnExpand.Render();
@@ -1615,6 +1626,13 @@ bool CNewUIMyInventory::BtnProcess()
         if (m_bRepairEnableLevel == true && m_BtnRepair.UpdateMouseEvent() == true)
         {
             ToggleRepairMode();
+            return true;
+        }
+
+        if (m_BtnBank.UpdateMouseEvent() == true)
+        {
+            g_pNewUISystem->Toggle(INTERFACE_BANK);
+            PlayBuffer(SOUND_CLICK01);
             return true;
         }
 

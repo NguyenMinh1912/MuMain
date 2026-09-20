@@ -17,6 +17,9 @@
 
 #include <coreclr_delegates.h>
 
+#include "Network/Server/BankProtocol.h"
+#include "PacketFunctions_CommonEnums.h"
+
 /// <summary>
 /// Extension methods to start writing messages of this namespace on a <see cref="Connection"/>.
 /// </summary>
@@ -64,6 +67,111 @@ public:
     /// </remarks>
     void SendLogin(const wchar_t* username, const wchar_t* password, const BYTE* clientVersion,
                    const BYTE* clientSerial);
+
+    /// <summary>
+    /// Sends a stat point increase request for several points at once to this connection.
+    /// </summary>
+    /// <param name="statType">The stat to increase.</param>
+    /// <param name="amount">The number of points to add to that stat.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xF3, 0xE0): the original client sends one packet per point, which makes
+    /// spending a big pool of level-up-points slow. The server caps the amount at the available points.
+    /// </remarks>
+    void SendIncreaseCharacterStatPointMultiple(CharacterStatAttribute statType, uint16_t amount);
+
+    /// <summary>
+    /// Sends a master skill point add request for several points at once to this connection.
+    /// </summary>
+    /// <param name="skillId">The master skill to raise.</param>
+    /// <param name="amount">The number of points to add to that skill.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xF3, 0xE1): the original client sends one packet per point, which makes
+    /// filling a master skill tree slow. The server adds points until the amount is reached, the skill is at its
+    /// maximum level, or the character runs out of master level up points.
+    /// </remarks>
+    void SendAddMasterSkillPointMultiple(uint16_t skillId, BYTE amount);
+
+    /// <summary>
+    /// Sends the answer of the reset confirmation dialog to this connection.
+    /// </summary>
+    /// <param name="resetTypeIndex">The reset type index of the corresponding confirmation request.</param>
+    /// <param name="accepted">Whether the player accepted the reset.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xF3, 0xE2): the server announces a reset with a 0xF3, 0xE0 message
+    /// and only performs it after this answer arrived.
+    /// </remarks>
+    void SendResetConfirmation(BYTE resetTypeIndex, bool accepted);
+
+    /// <summary>
+    /// Sends the request to move value between the character and the bank of its account.
+    /// </summary>
+    /// <param name="deposit">True to move the value into the bank, false to take it out.</param>
+    /// <param name="currency">The currency to move.</param>
+    /// <param name="amount">The amount to move; always positive.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x01).</remarks>
+    void SendBankMoveValue(bool deposit, Net::Bank::Currency currency, int64_t amount);
+
+    /// <summary>
+    /// Sends the request to offer an item of the bank on the market.
+    /// </summary>
+    /// <param name="bankSlot">The box of the item in the item storage of the bank.</param>
+    /// <param name="priceCurrency">The currency the seller wants to be paid in.</param>
+    /// <param name="price">The price.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x04).</remarks>
+    void SendMarketRegisterItem(BYTE bankSlot, Net::Bank::Currency priceCurrency, int64_t price);
+
+    /// <summary>
+    /// Sends the request to offer an amount of a currency of the bank on the market.
+    /// </summary>
+    /// <param name="offeredCurrency">The offered currency.</param>
+    /// <param name="offeredAmount">The offered amount.</param>
+    /// <param name="priceCurrency">The currency the seller wants to be paid in.</param>
+    /// <param name="price">The price.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x05).</remarks>
+    void SendMarketRegisterCurrency(Net::Bank::Currency offeredCurrency, int64_t offeredAmount,
+                                    Net::Bank::Currency priceCurrency, int64_t price);
+
+    /// <summary>
+    /// Sends the request to buy an offer of the market.
+    /// </summary>
+    /// <param name="listingId">The identifier of the offer, as it arrived.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x06).</remarks>
+    void SendMarketBuy(const BYTE* listingId);
+
+    /// <summary>
+    /// Sends the request to take an own offer off the market.
+    /// </summary>
+    /// <param name="listingId">The identifier of the offer, as it arrived.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x07).</remarks>
+    void SendMarketCancel(const BYTE* listingId);
+
+    /// <summary>
+    /// Sends the request to list the offers of the market.
+    /// </summary>
+    /// <param name="page">The page to show, starting at 0.</param>
+    /// <param name="priceCurrencyFilter">The currency the price has to be in; Net::Bank::AnyCurrency for any.</param>
+    /// <param name="ownOffersOnly">True to list only the offers of this account.</param>
+    /// <param name="nameFilter">A text which the name of the offer has to contain.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x08).</remarks>
+    void SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly, const wchar_t* nameFilter,
+                        BYTE offerKindFilter, BYTE classFilter, BYTE itemCategoryFilter, BYTE setFilter);
+
+    /// <summary>
+    /// Tells the server that the bank dialog was opened or closed.
+    /// </summary>
+    /// <param name="open">True when the dialog was opened, false when it was closed.</param>
+    /// <remarks>
+    /// Not part of the original protocol (0xFB, 0x0A). The bank is reached from a button of the
+    /// inventory, so opening it is a request of its own rather than the answer to a talk.
+    /// </remarks>
+    void SendBankDialog(bool open);
+
+    /// <summary>
+    /// Sends the request to show a page of the ledger of the bank.
+    /// </summary>
+    /// <param name="page">The page to show, starting at 0.</param>
+    /// <remarks>Not part of the original protocol (0xFB, 0x09).</remarks>
+    void SendBankLedger(BYTE page);
 };
 
 /// <summary>

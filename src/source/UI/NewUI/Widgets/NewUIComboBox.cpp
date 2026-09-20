@@ -101,6 +101,19 @@ bool CNewUIComboBox::IsScrollable() const
     return m_MaxVisibleItems > 0 && m_ItemCount > m_MaxVisibleItems;
 }
 
+bool CNewUIComboBox::OpensUpwards() const
+{
+    if (m_BottomLimit <= 0)
+        return false;
+    return m_Y + m_ItemHeight + GetListHeight() > m_BottomLimit;
+}
+
+int CNewUIComboBox::GetListY() const
+{
+    // Upwards the list ends where the field begins, so the two touch either way round.
+    return OpensUpwards() ? (m_Y - GetListHeight()) : (m_Y + m_ItemHeight);
+}
+
 void CNewUIComboBox::ClampScrollOffset()
 {
     const int maxOffset = GetMaxScrollOffset();

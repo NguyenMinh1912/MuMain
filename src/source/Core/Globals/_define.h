@@ -77,6 +77,8 @@ enum EPathNodeState : BYTE
     PATH_END = (0x04),
 };
 
+// DEFINE_ENUM_FLAG_OPERATORS comes from the Windows SDK, which cppcheck does not read.
+// cppcheck-suppress unknownMacro
 DEFINE_ENUM_FLAG_OPERATORS(EPathNodeState)
 
 enum EPathDirection
@@ -185,6 +187,10 @@ enum struct STORAGE_TYPE
     DETACH_SOCKET_MIX = 14,
     LUCKYITEM_TRADE = 15,
     LUCKYITEM_REFINERY = 16,
+
+    // The item storage of the bank of the account. Not part of the original protocol, and far
+    // above the other values because 15 and 16 are already taken by storages of this client.
+    BANK = 200,
 };
 
 // Lucky Set armor constants - verified as indices 62-72 (Phoenix Soul is at 73)

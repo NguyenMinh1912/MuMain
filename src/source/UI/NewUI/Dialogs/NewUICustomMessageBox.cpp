@@ -19,6 +19,9 @@
 #include "UI/NewUI/NewUISystem.h"
 #include "Core/Text/TextLineWrap.h"
 
+#include <cerrno>
+#include <cwchar>
+
 extern int DeleteIndex;
 extern int AppointStatus;
 extern bool LogOut;
@@ -4551,6 +4554,170 @@ CALLBACK_RESULT SEASON3B::CPersonalShopNameMsgBoxLayout::CancelBtnDown(class CNe
     PlayBuffer(SOUND_CLICK01);
     g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
 
+    return CALLBACK_BREAK;
+}
+
+namespace
+{
+/// <summary>
+/// Reads what the player typed into a number box as an amount of the bank.
+/// </summary>
+/// <param name="text">The text of the input box.</param>
+/// <returns>The amount, or 0 when nothing usable was typed.</returns>
+/// <remarks>
+/// Not <c>_wtoi</c>, which the older dialogs use: a balance of the bank does not fit into 32 bits,
+/// and a price which silently overflowed would be the difference between a fortune and nothing.
+/// </remarks>
+int64_t ReadBankAmount(const wchar_t* text)
+{
+    if (text == nullptr || wcslen(text) == 0)
+    {
+        return 0;
+    }
+
+    errno = 0;
+    wchar_t* end = nullptr;
+    const long long value = wcstoll(text, &end, 10);
+    if (errno != 0 || end == text || value <= 0)
+    {
+        return 0;
+    }
+
+    return static_cast<int64_t>(value);
+}
+} // namespace
+
+bool SEASON3B::CBankPriceMsgBoxLayout::SetLayout()
+{
+    CNewUITextInputMsgBox* pMsgBox = GetMsgBox();
+    if (0 == pMsgBox)
+        return false;
+
+    if (false ==
+        pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
+        return false;
+
+    pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
+    pMsgBox->AddMsg(I18N::Game::BankEnterThePrice);
+    pMsgBox->AddMsg(g_pBankWindow->GetPriceCurrencyName());
+    pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::ReturnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
+    pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
+    pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
+    pMsgBox->AddCallbackFunc(CBankPriceMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_PRESSKEY_ESC);
+    return true;
+}
+
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner,
+                                                            const leaf::xstreambuf& xParam)
+{
+    auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
+    if (pMsgBox == nullptr)
+    {
+        return CALLBACK_CONTINUE;
+    }
+
+    wchar_t strText[MAX_TEXT_LENGTH] = {
+        0,
+    };
+    pMsgBox->GetInputBoxText(strText);
+
+    const int64_t price = ReadBankAmount(strText);
+    if (price == 0)
+    {
+        // Nothing usable was typed, so the dialog stays open instead of sending a price of zero.
+        return CALLBACK_CONTINUE;
+    }
+
+    g_pBankWindow->FinishOffer(price);
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
+    return CALLBACK_BREAK;
+}
+
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
+{
+    return ProcessOk(pOwner, xParam);
+}
+
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                            const leaf::xstreambuf& xParam)
+{
+    return ProcessOk(pOwner, xParam);
+}
+
+CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                                const leaf::xstreambuf& xParam)
+{
+    g_pBankWindow->CancelPendingInput();
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
+    return CALLBACK_BREAK;
+}
+
+bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
+{
+    CNewUITextInputMsgBox* pMsgBox = GetMsgBox();
+    if (0 == pMsgBox)
+        return false;
+
+    if (false ==
+        pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
+        return false;
+
+    pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
+    pMsgBox->AddMsg(I18N::Game::BankEnterTheAmount);
+    pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::ReturnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
+    pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
+    pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
+    pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_PRESSKEY_ESC);
+    return true;
+}
+
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
+{
+    auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
+    if (pMsgBox == nullptr)
+    {
+        return CALLBACK_CONTINUE;
+    }
+
+    wchar_t strText[MAX_TEXT_LENGTH] = {
+        0,
+    };
+    pMsgBox->GetInputBoxText(strText);
+
+    const int64_t amount = ReadBankAmount(strText);
+    if (amount == 0)
+    {
+        return CALLBACK_CONTINUE;
+    }
+
+    g_pBankWindow->FinishValueAmount(amount);
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
+    return CALLBACK_BREAK;
+}
+
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ReturnDown(class CNewUIMessageBoxBase* pOwner,
+                                                              const leaf::xstreambuf& xParam)
+{
+    return ProcessOk(pOwner, xParam);
+}
+
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                             const leaf::xstreambuf& xParam)
+{
+    return ProcessOk(pOwner, xParam);
+}
+
+CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner,
+                                                                 const leaf::xstreambuf& xParam)
+{
+    g_pBankWindow->CancelPendingInput();
+    PlayBuffer(SOUND_CLICK01);
+    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
     return CALLBACK_BREAK;
 }
 

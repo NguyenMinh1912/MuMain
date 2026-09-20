@@ -39,7 +39,7 @@ void PacketFunctions_ClientToServer_Custom::SendLogin(const wchar_t* username, c
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendIncreaseCharacterStatPointMultipleFn)(int32_t, BYTE, uint16_t);
 
 void PacketFunctions_ClientToServer_Custom::SendIncreaseCharacterStatPointMultiple(CharacterStatAttribute statType,
-                                                                                  uint16_t amount)
+                                                                                   uint16_t amount)
 {
     static SendIncreaseCharacterStatPointMultipleFn dotnet_SendIncreaseCharacterStatPointMultiple = nullptr;
     if (!dotnet_SendIncreaseCharacterStatPointMultiple)
@@ -62,8 +62,8 @@ void PacketFunctions_ClientToServer_Custom::SendAddMasterSkillPointMultiple(uint
     static SendAddMasterSkillPointMultipleFn dotnet_SendAddMasterSkillPointMultiple = nullptr;
     if (!dotnet_SendAddMasterSkillPointMultiple)
     {
-        dotnet_SendAddMasterSkillPointMultiple = LoadManagedSymbol<SendAddMasterSkillPointMultipleFn>(
-            "ConnectionManager_SendAddMasterSkillPointMultiple");
+        dotnet_SendAddMasterSkillPointMultiple =
+            LoadManagedSymbol<SendAddMasterSkillPointMultipleFn>("ConnectionManager_SendAddMasterSkillPointMultiple");
         if (!dotnet_SendAddMasterSkillPointMultiple)
         {
             return;
@@ -80,7 +80,8 @@ void PacketFunctions_ClientToServer_Custom::SendResetConfirmation(BYTE resetType
     static SendResetConfirmationFn dotnet_SendResetConfirmation = nullptr;
     if (!dotnet_SendResetConfirmation)
     {
-        dotnet_SendResetConfirmation = LoadManagedSymbol<SendResetConfirmationFn>("ConnectionManager_SendResetConfirmation");
+        dotnet_SendResetConfirmation =
+            LoadManagedSymbol<SendResetConfirmationFn>("ConnectionManager_SendResetConfirmation");
         if (!dotnet_SendResetConfirmation)
         {
             return;
@@ -180,10 +181,12 @@ void PacketFunctions_ClientToServer_Custom::SendMarketCancel(const BYTE* listing
     dotnet_SendMarketCancel(this->GetHandle(), listingId);
 }
 
-typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListFn)(int32_t, BYTE, BYTE, BYTE, const char16_t*);
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendMarketListFn)(int32_t, BYTE, BYTE, BYTE, const char16_t*, BYTE, BYTE, BYTE,
+                                                          BYTE);
 
 void PacketFunctions_ClientToServer_Custom::SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly,
-                                                           const wchar_t* nameFilter)
+                                                           const wchar_t* nameFilter, BYTE offerKindFilter,
+                                                           BYTE classFilter, BYTE itemCategoryFilter, BYTE setFilter)
 {
     static SendMarketListFn dotnet_SendMarketList = nullptr;
     if (!dotnet_SendMarketList)
@@ -195,7 +198,8 @@ void PacketFunctions_ClientToServer_Custom::SendMarketList(BYTE page, BYTE price
         }
     }
 
-    dotnet_SendMarketList(this->GetHandle(), page, priceCurrencyFilter, ownOffersOnly ? 1 : 0, MU_C16(nameFilter));
+    dotnet_SendMarketList(this->GetHandle(), page, priceCurrencyFilter, ownOffersOnly ? 1 : 0, MU_C16(nameFilter),
+                          offerKindFilter, classFilter, itemCategoryFilter, setFilter);
 }
 
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendBankDialogFn)(int32_t, BYTE);

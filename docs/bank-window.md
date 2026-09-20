@@ -39,14 +39,42 @@ not, the system log says to pick one first and nothing is sent.
 
 ## The market page
 
-**Market** switches to the offers of all players. Each entry shows what is offered, its price and
-its seller; click one to select it.
+**Market** switches to the offers of all players. They are shown as boxes, the way the storage
+shows items: a box holds the picture of what is offered, the level of the item in its corner, and
+under it what it costs. An offer of a currency has no picture, so the amount it offers stands where
+one would be.
+
+A price stands in full while it fits under a picture and in billions once it no longer does -
+`12B` rather than a number which would run past the edge of its box. The exact price is always
+written out underneath the boxes for the offer which is selected, beside the name of the item and
+who is selling it.
+
+Click a box to select the offer. **Hovering** one describes the item the way the inventory does.
+An offer of this account carries a blue edge: it cannot be bought, only taken back.
 
 | Button | What it does |
 |---|---|
 | **Prev** / **Next** | Turns the page |
 | **Buy** | Buys the selected offer |
 | **Take back** | Ends an own offer and gets what it held back |
+
+### Searching it
+
+Four dropdowns narrow what is listed. They search the whole market and not the page on screen: the
+server sends one page at a time, so every one of them is answered where the offers are kept.
+
+| Dropdown | What it narrows to |
+|---|---|
+| **Any kind** | Items, or an amount of a currency |
+| **Any class** | What one family of character classes may wear - a wizard, a knight, an elf, a gladiator, a lord, a summoner or a fighter |
+| **Any set** | One set of armour - Bronze, Dragon, Legendary and the rest - or, at the end of the list, wings, weapons, shields, jewelry and everything else |
+| **Any currency** | Offers whose price is named in one currency |
+
+The list of sets is read out of the item list of the client, so it is the sets of this server, in
+its language, and not a list written out a second time. Picking a class shortens it to the sets
+that class can wear, which is what "the summoner set" means in practice.
+
+Changing any of them goes back to the first page, because the offers under it are different ones.
 
 What an offer holds has already left the seller's bank, so a seller can be offline - the deal does
 not need him. What is bought arrives in the bank, not in the inventory.

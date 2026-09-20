@@ -6,11 +6,13 @@
 
 #include "Network/Server/BankProtocol.h"
 #include "UI/NewUI/Dialogs/NewUIMessageBox.h"
+#include "UI/NewUI/Inventory/Market/SetCatalog.h"
 #include "UI/NewUI/Inventory/NewUIInventoryCtrl.h"
 #include "UI/NewUI/Inventory/NewUIMyInventory.h"
 #include "UI/NewUI/NewUI3DRenderMng.h"
 #include "UI/NewUI/NewUIBase.h"
 #include "UI/NewUI/Widgets/NewUIButton.h"
+#include "UI/NewUI/Widgets/NewUIComboBox.h"
 
 #include <array>
 #include <span>
@@ -152,6 +154,37 @@ private:
         RENDER_OFFER_TOOLTIP = 2,
     };
 
+    /// <summary>The dropdowns which narrow what the market lists.</summary>
+    enum MARKET_FILTER
+    {
+        FILTER_KIND = 0,
+        FILTER_CLASS,
+        FILTER_SET,
+        FILTER_CURRENCY,
+        MAX_FILTER,
+    };
+
+    /// <summary>
+    /// One entry of the dropdown which narrows the market to a set of armour, or to a kind of item
+    /// which is not worn as a set.
+    /// </summary>
+    struct MarketSetFilter
+    {
+        std::wstring Name;
+
+        /// <summary>What the offered item has to be; <c>AnyFilter</c> when it may be anything.</summary>
+        BYTE Category;
+
+        /// <summary>The set it has to belong to; <c>AnyFilter</c> when any set will do.</summary>
+        BYTE SetNumber;
+
+        /// <summary>
+        /// Which families of classes may wear it, as one bit per family; zero when the entry says
+        /// nothing about a class and is therefore offered to every one of them.
+        /// </summary>
+        int ClassMask;
+    };
+
     enum BANK_BUTTON
     {
         BTN_TAB_ITEMS = 0,
@@ -224,6 +257,8 @@ private:
         /// because under the picture of an offer stands what it costs.
         /// </summary>
         int marketFilterRowTop;
+        RECT marketFilter[3];
+        RECT marketCurrencyFilter;
         int marketTileWidth;
         int marketTileHeight;
         int marketPictureHeight;
@@ -251,6 +286,29 @@ private:
 
     void BuildLayout();
     void ApplyLayoutToButtons();
+    void ApplyLayoutToFilters();
+
+    /// <summary>Fills the dropdowns which narrow the market, once, when the window is made.</summary>
+    void BuildMarketFilters();
+
+    /// <summary>Lists the sets the chosen class may wear, and none of the other classes'.</summary>
+    void RefreshSetFilter();
+
+    /// <summary>Reads the dropdowns of the market.</summary>
+    /// <returns><c>true</c> when the cursor belongs to a dropdown and nothing else may have it.</returns>
+    bool ProcessMarketFilters();
+
+    /// <summary>Draws the dropdowns of the market, over everything they may cover.</summary>
+    void RenderMarketFilters();
+
+    /// <summary>Shuts every dropdown, which is what leaving the tab of the market means.</summary>
+    void CloseMarketFilters();
+
+    /// <summary>Gets whether a dropdown is open over the boxes of the market.</summary>
+    bool IsAnyMarketFilterOpen() const;
+
+    /// <summary>Gets which set or kind of item the dropdown of the sets is on.</summary>
+    const MarketSetFilter& GetSelectedSetFilter() const;
 
     void InitButton(CNewUIButton* pButton, const wchar_t* const* captionSlot);
     void ShowRefusedRequest(Net::Bank::ResultCode result);
@@ -383,6 +441,26 @@ private:
     Layout m_layout;
 
     CNewUIButton m_abtn[MAX_BTN];
+
+    CNewUIComboBox m_marketFilter[MAX_FILTER];
+
+    /// <summary>
+    /// What the dropdown of the sets can be set to: everything, then every set of armour the item
+    /// list of the server holds, then the kinds of item which are not worn as a set.
+    /// </summary>
+    std::vector<MarketSetFilter> m_setFilters;
+
+    /// <summary>Which of them the dropdown currently lists, by their place in it.</summary>
+    std::vector<int> m_shownSetFilters;
+
+    /// <summary>
+    /// The captions the dropdowns read. A dropdown does not own what it is given, so these outlive
+    /// it here rather than in the call which set it up.
+    /// </summary>
+    std::vector<const wchar_t*> m_setFilterLabels;
+    std::vector<const wchar_t*> m_currencyFilterLabels;
+    std::array<const wchar_t*, 3> m_kindFilterLabels{};
+    std::array<const wchar_t*, 8> m_classFilterLabels{};
 
     Page m_page;
     int m_itemPage;

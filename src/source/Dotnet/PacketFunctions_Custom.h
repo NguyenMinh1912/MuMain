@@ -153,7 +153,8 @@ public:
     /// <param name="ownOffersOnly">True to list only the offers of this account.</param>
     /// <param name="nameFilter">A text which the name of the offer has to contain.</param>
     /// <remarks>Not part of the original protocol (0xFB, 0x08).</remarks>
-    void SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly, const wchar_t* nameFilter);
+    void SendMarketList(BYTE page, BYTE priceCurrencyFilter, bool ownOffersOnly, const wchar_t* nameFilter,
+                        BYTE offerKindFilter, BYTE classFilter, BYTE itemCategoryFilter, BYTE setFilter);
 
     /// <summary>
     /// Tells the server that the bank dialog was opened or closed.

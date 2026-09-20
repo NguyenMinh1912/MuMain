@@ -13089,6 +13089,39 @@
   <data name="Bank billions suffix" xml:space="preserve">
     <value> Tỷ</value>
   </data>
+  <data name="Bank filter any kind" xml:space="preserve">
+    <value>Mọi loại</value>
+  </data>
+  <data name="Bank filter any class" xml:space="preserve">
+    <value>Mọi chủng tộc</value>
+  </data>
+  <data name="Bank filter any set" xml:space="preserve">
+    <value>Mọi bộ đồ</value>
+  </data>
+  <data name="Bank filter any currency" xml:space="preserve">
+    <value>Mọi tiền tệ</value>
+  </data>
+  <data name="Bank filter items" xml:space="preserve">
+    <value>Vật phẩm</value>
+  </data>
+  <data name="Bank filter currency" xml:space="preserve">
+    <value>Tiền tệ</value>
+  </data>
+  <data name="Bank filter wings" xml:space="preserve">
+    <value>Cánh</value>
+  </data>
+  <data name="Bank filter weapons" xml:space="preserve">
+    <value>Vũ khí</value>
+  </data>
+  <data name="Bank filter shields" xml:space="preserve">
+    <value>Khiên</value>
+  </data>
+  <data name="Bank filter jewelry" xml:space="preserve">
+    <value>Trang sức</value>
+  </data>
+  <data name="Bank filter other items" xml:space="preserve">
+    <value>Vật phẩm khác</value>
+  </data>
   <data name="Bank price column" xml:space="preserve">
     <value>Giá</value>
   </data>

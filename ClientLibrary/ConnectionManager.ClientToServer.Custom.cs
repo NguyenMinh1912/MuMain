@@ -330,17 +330,25 @@ public unsafe partial class ConnectionManager
     /// <param name="priceCurrencyFilter">The currency the price has to be in; 255 for any.</param>
     /// <param name="ownOffersOnly">1 to list only the offers of this account.</param>
     /// <param name="nameFilter">A text which the name of the offer has to contain.</param>
+    /// <param name="offerKindFilter">The kind the offer has to be, items or a currency; 255 for both.</param>
+    /// <param name="classFilter">The family of classes which has to be able to wear it; 255 for any.</param>
+    /// <param name="itemCategoryFilter">What the offered item has to be; 255 for anything.</param>
+    /// <param name="setFilter">The set of armour the piece has to belong to; 255 for any set.</param>
     /// <remarks>Not part of the original protocol (0xFB, 0x08).</remarks>
     [UnmanagedCallersOnly(EntryPoint = "ConnectionManager_SendMarketList")]
-    public static void SendMarketList(int handle, byte @page, byte @priceCurrencyFilter, byte @ownOffersOnly, IntPtr @nameFilter)
+    public static void SendMarketList(int handle, byte @page, byte @priceCurrencyFilter, byte @ownOffersOnly, IntPtr @nameFilter, byte @offerKindFilter, byte @classFilter, byte @itemCategoryFilter, byte @setFilter)
     {
         var filter = NativeInterop.PtrToWideString(@nameFilter) ?? string.Empty;
-        SendBankPacket(handle, "market list", 0x08, 27, packet =>
+        SendBankPacket(handle, "market list", 0x08, 31, packet =>
         {
             packet[4] = @page;
             packet[5] = @priceCurrencyFilter;
             packet[6] = @ownOffersOnly;
             WriteFixedString(packet.Slice(7, 20), filter);
+            packet[27] = @offerKindFilter;
+            packet[28] = @classFilter;
+            packet[29] = @itemCategoryFilter;
+            packet[30] = @setFilter;
         });
     }
 

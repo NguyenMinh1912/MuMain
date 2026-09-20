@@ -32,8 +32,23 @@ constexpr int ListingIdLength = 16;
 /// <summary>The length of the raw item of a market offer, as it travels.</summary>
 constexpr int OfferItemDataLength = 16;
 
-/// <summary>The value of the currency filter which means "any currency".</summary>
-constexpr BYTE AnyCurrency = 255;
+/// <summary>The value of a filter of the market which lets everything through.</summary>
+constexpr BYTE AnyFilter = 255;
+
+/// <summary>
+/// What an offered item is, as a player searches for it. Mirrors the MarketItemCategory of the
+/// server, which works it out when the offer is made.
+/// </summary>
+enum class ItemCategory : BYTE
+{
+    None = 0,
+    Armor = 1,
+    Weapon = 2,
+    Shield = 3,
+    Wings = 4,
+    Jewelry = 5,
+    Other = 6,
+};
 
 /// <summary>A kind of value which the bank holds. Mirrors the BankCurrency of the server.</summary>
 enum class Currency : BYTE

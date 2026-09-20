@@ -13081,6 +13081,39 @@
   <data name="Bank billions suffix" xml:space="preserve">
     <value>B</value>
   </data>
+  <data name="Bank filter any kind" xml:space="preserve">
+    <value>Any kind</value>
+  </data>
+  <data name="Bank filter any class" xml:space="preserve">
+    <value>Any class</value>
+  </data>
+  <data name="Bank filter any set" xml:space="preserve">
+    <value>Any set</value>
+  </data>
+  <data name="Bank filter any currency" xml:space="preserve">
+    <value>Any currency</value>
+  </data>
+  <data name="Bank filter items" xml:space="preserve">
+    <value>Items</value>
+  </data>
+  <data name="Bank filter currency" xml:space="preserve">
+    <value>Currency</value>
+  </data>
+  <data name="Bank filter wings" xml:space="preserve">
+    <value>Wings</value>
+  </data>
+  <data name="Bank filter weapons" xml:space="preserve">
+    <value>Weapons</value>
+  </data>
+  <data name="Bank filter shields" xml:space="preserve">
+    <value>Shields</value>
+  </data>
+  <data name="Bank filter jewelry" xml:space="preserve">
+    <value>Jewelry</value>
+  </data>
+  <data name="Bank filter other items" xml:space="preserve">
+    <value>Other items</value>
+  </data>
   <data name="Bank price column" xml:space="preserve">
     <value>Price</value>
   </data>

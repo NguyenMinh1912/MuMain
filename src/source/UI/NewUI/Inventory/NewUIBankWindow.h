@@ -99,6 +99,14 @@ public:
     /// <returns><c>true</c> when a move was sent.</returns>
     bool ProcessMyInvenItemAutoMove(CNewUIInventoryCtrl* sourceCtrl = nullptr);
 
+    /// <summary>
+    /// Opens the window on the tab of the market, which is what the box of the menu asks for.
+    /// </summary>
+    void ShowMarketPage();
+
+    /// <summary>Tells whether the tab of the market is the one being shown.</summary>
+    bool IsMarketPage() const;
+
     /// <summary>Asks the server for a page of the market.</summary>
     void RequestMarketPage(BYTE page);
 

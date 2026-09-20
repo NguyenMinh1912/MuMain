@@ -242,7 +242,7 @@ bool SEASON3B::CNewUIHotKey::UpdateKeyEvent()
     }
     else if (SEASON3B::IsPress('U'))
     {
-        g_pNewUISystem->Toggle(SEASON3B::INTERFACE_WINDOW_MENU);
+        g_pNewUISystem->Toggle(SEASON3B::INTERFACE_GAME_MENU);
         PlayBuffer(SOUND_CLICK01);
         return false;
     }

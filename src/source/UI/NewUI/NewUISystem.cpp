@@ -64,6 +64,7 @@ CNewUISystem::CNewUISystem()
     m_pNewGatemanWindow = nullptr;
     m_pNewGateSwitchWindow = nullptr;
     m_pNewBankWindow = nullptr;
+    m_pNewGameMenu = nullptr;
     m_pNewStorageInventory = nullptr;
     m_pNewStorageInventoryExt = nullptr;
     m_pNewGuildInfoWindow = nullptr;
@@ -272,6 +273,10 @@ bool CNewUISystem::LoadMainSceneInterface()
     m_pNewBankWindow = new CNewUIBankWindow;
     if (m_pNewBankWindow->Create(m_pNewUIMng, m_pNewUI3DRenderMng, PanelColumnX(1) - CNewUIBankWindow::GetWindowWidth(),
                                  0) == false)
+        return false;
+
+    m_pNewGameMenu = new CNewUIGameMenu;
+    if (m_pNewGameMenu->Create(m_pNewUIMng) == false)
         return false;
 
     m_pNewStorageInventoryExt = new CNewUIStorageInventoryExt;
@@ -585,6 +590,7 @@ void CNewUISystem::UnloadMainSceneInterface()
     SAFE_DELETE(m_pNewGuildMakeWindow);
     SAFE_DELETE(m_pNewGuildInfoWindow);
     SAFE_DELETE(m_pNewBankWindow);
+    SAFE_DELETE(m_pNewGameMenu);
     SAFE_DELETE(m_pNewStorageInventory);
     SAFE_DELETE(m_pNewMixInventory);
     SAFE_DELETE(m_pNewCastleWindow);
@@ -839,6 +845,12 @@ void CNewUISystem::Show(DWORD dwKey)
         m_pNewUIMng->ShowInterface(INTERFACE_INVENTORY);
         g_pNPCShop->SetPos(PanelColumnX(2), 0);
         g_pMainFrame->SetBtnState(MAINFRAME_BTN_MYINVEN, true);
+    }
+    else if (dwKey == INTERFACE_GAME_MENU)
+    {
+        // A popup of the hud, so nothing else is put away for it: the player opens the menu to
+        // reach a window, and closing what he was looking at first would be the wrong answer.
+        g_pGameMenu->OpeningProcess();
     }
     else if (dwKey == INTERFACE_BANK)
     {
@@ -1353,6 +1365,10 @@ void CNewUISystem::Hide(DWORD dwKey)
         g_pMyInventory->SetPos(PanelColumnX(1), 0);
         Show(INTERFACE_HERO_POSITION_INFO);
     }
+    else if (dwKey == INTERFACE_GAME_MENU)
+    {
+        g_pGameMenu->ClosingProcess();
+    }
     else if (dwKey == INTERFACE_BANK)
     {
         // The server keeps the npc dialog open until the client says it closed it.
@@ -1664,6 +1680,7 @@ void CNewUISystem::HideAllGroupA()
         INTERFACE_MIXINVENTORY,
         INTERFACE_STORAGE,
         INTERFACE_BANK,
+        INTERFACE_GAME_MENU,
         INTERFACE_NPCSHOP,
         INTERFACE_MYSHOP_INVENTORY,
         INTERFACE_PURCHASESHOP_INVENTORY,
@@ -1725,6 +1742,7 @@ void CNewUISystem::HideAllGroupB()
         INTERFACE_MIXINVENTORY,
         INTERFACE_STORAGE,
         INTERFACE_BANK,
+        INTERFACE_GAME_MENU,
         INTERFACE_NPCSHOP,
         INTERFACE_MYSHOP_INVENTORY,
         INTERFACE_PURCHASESHOP_INVENTORY,
@@ -2243,6 +2261,11 @@ CNewUIGateSwitchWindow* CNewUISystem::GetUI_NewGateSwitchWindow() const
 CNewUIBankWindow* CNewUISystem::GetUI_NewBankWindow() const
 {
     return m_pNewBankWindow;
+}
+
+CNewUIGameMenu* CNewUISystem::GetUI_NewGameMenu() const
+{
+    return m_pNewGameMenu;
 }
 
 CNewUIStorageInventory* CNewUISystem::GetUI_NewStorageInventory() const

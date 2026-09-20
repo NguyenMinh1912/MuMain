@@ -13294,4 +13294,82 @@
   <data name="Bank preset billions" xml:space="preserve">
     <value>%dB</value>
   </data>
+  <data name="Menu" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="Menu all" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Menu collapse" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Menu close" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Menu group highlight" xml:space="preserve">
+    <value>Featured</value>
+  </data>
+  <data name="Menu group character" xml:space="preserve">
+    <value>Character</value>
+  </data>
+  <data name="Menu group social" xml:space="preserve">
+    <value>Social</value>
+  </data>
+  <data name="Menu group system" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Menu bank" xml:space="preserve">
+    <value>Bank</value>
+  </data>
+  <data name="Menu market" xml:space="preserve">
+    <value>Market</value>
+  </data>
+  <data name="Menu move map" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="Menu quests" xml:space="preserve">
+    <value>Quests</value>
+  </data>
+  <data name="Menu helper" xml:space="preserve">
+    <value>Helper</value>
+  </data>
+  <data name="Menu friends" xml:space="preserve">
+    <value>Friends</value>
+  </data>
+  <data name="Menu guild" xml:space="preserve">
+    <value>Guild</value>
+  </data>
+  <data name="Menu mini map" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Menu character" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="Menu inventory" xml:space="preserve">
+    <value>Items</value>
+  </data>
+  <data name="Menu master level" xml:space="preserve">
+    <value>Master</value>
+  </data>
+  <data name="Menu pet" xml:space="preserve">
+    <value>Pet</value>
+  </data>
+  <data name="Menu party" xml:space="preserve">
+    <value>Party</value>
+  </data>
+  <data name="Menu gens" xml:space="preserve">
+    <value>Gens</value>
+  </data>
+  <data name="Menu options" xml:space="preserve">
+    <value>Options</value>
+  </data>
+  <data name="Menu help" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="Menu commands" xml:space="preserve">
+    <value>Commands</value>
+  </data>
+  <data name="Menu exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
 </root>

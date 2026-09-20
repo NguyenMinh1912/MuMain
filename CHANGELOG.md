@@ -1,3 +1,18 @@
+## [1.1.0](https://github.com/NguyenMinh1912/MuMain/compare/v1.0.1...v1.1.0) (2026-09-20)
+
+### Features
+
+* **bank:** ảnh ngọc trên tab giá trị và hộp thoại nhập số có mệnh giá ([038cafb](https://github.com/NguyenMinh1912/MuMain/commit/038cafbab1565e65f8afd8dfe57895425618a6be))
+* **ui:** reach every window from one menu of the hud ([2f9301e](https://github.com/NguyenMinh1912/MuMain/commit/2f9301eab33308e7d4ed873d7ef30f6a3af3830d))
+
+### Bug Fixes
+
+* **bank:** ảnh vật phẩm chui ra khỏi tấm nền, và nút không im lặng nữa ([b686331](https://github.com/NguyenMinh1912/MuMain/commit/b686331cbc74e60d92fa7d547acfa063b2416c4c))
+
+### Refactoring
+
+* **ui:** share the look of the windows which draw themselves ([67527a6](https://github.com/NguyenMinh1912/MuMain/commit/67527a60a4e7cb4608f774619c31f858769ad668))
+
 ## [1.0.1](https://github.com/NguyenMinh1912/MuMain/compare/v1.0.0...v1.0.1) (2026-09-20)
 
 ### Bug Fixes

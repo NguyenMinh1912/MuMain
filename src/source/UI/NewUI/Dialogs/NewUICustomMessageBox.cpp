@@ -18,9 +18,13 @@
 #include "GameLogic/Items/InventoryUtils.h"
 #include "UI/NewUI/NewUISystem.h"
 #include "Core/Text/TextLineWrap.h"
+#include "Render/Textures/ZzzOpenglUtil.h"
+#include "UI/NewUI/NewUICommon.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <cwchar>
+#include <iterator>
 
 extern int DeleteIndex;
 extern int AppointStatus;
@@ -4655,18 +4659,606 @@ CALLBACK_RESULT SEASON3B::CBankPriceMsgBoxLayout::CancelBtnDown(class CNewUIMess
     return CALLBACK_BREAK;
 }
 
+namespace
+{
+/// <summary>The panel of the dialog, in the colours the bank window is drawn in.</summary>
+constexpr unsigned int BANKBOX_PANEL_COLOR = 0xF20E0F12u;
+constexpr unsigned int BANKBOX_PANEL_EDGE_COLOR = 0xFF6B5A3Cu;
+constexpr unsigned int BANKBOX_PANEL_INNER_COLOR = 0xFF241F16u;
+
+/// <summary>The line which separates the heading and the footer from the body.</summary>
+constexpr unsigned int BANKBOX_DIVIDER_COLOR = 0x804A5566u;
+
+/// <summary>The plate of a button, in the states the cursor puts it in.</summary>
+constexpr unsigned int BANKBOX_BUTTON_UP_COLOR = 0xFF433D31u;
+constexpr unsigned int BANKBOX_BUTTON_OVER_COLOR = 0xFF564E3Eu;
+constexpr unsigned int BANKBOX_BUTTON_EDGE_COLOR = 0xFF8A7444u;
+constexpr unsigned int BANKBOX_BUTTON_EDGE_ON_COLOR = 0xFFFFC83Cu;
+
+/// <summary>The plate of a button whose amount is above the limit and would be cut down.</summary>
+constexpr unsigned int BANKBOX_BUTTON_DIM_COLOR = 0xFF221F19u;
+constexpr unsigned int BANKBOX_BUTTON_DIM_EDGE_COLOR = 0xFF443E31u;
+
+/// <summary>The box the amount is typed into.</summary>
+constexpr unsigned int BANKBOX_INPUT_BACK_COLOR = 0xFF06070Au;
+constexpr unsigned int BANKBOX_INPUT_EDGE_COLOR = 0xFF4A4235u;
+
+/// <summary>How wide the dialog is. Everything else is measured from it.</summary>
+constexpr int BANKBOX_WIDTH = 320;
+
+/// <summary>How much of the dialog stays bare around what it holds.</summary>
+constexpr int BANKBOX_PAD = 14;
+
+constexpr int BANKBOX_TITLE_HEIGHT = 17;
+constexpr int BANKBOX_LINE_HEIGHT = 15;
+constexpr int BANKBOX_INPUT_HEIGHT = 26;
+constexpr int BANKBOX_BUTTON_HEIGHT = 26;
+constexpr int BANKBOX_HINT_HEIGHT = 15;
+constexpr int BANKBOX_GAP = 5;
+
+/// <summary>How wide the words in front of the box the amount is typed into are.</summary>
+constexpr int BANKBOX_INPUT_LABEL_WIDTH = 74;
+
+/// <summary>How far under the top of its plate the caption of a button sits.</summary>
+constexpr int BANKBOX_BUTTON_TEXT_TOP = 5;
+
+/// <summary>How many buttons of amounts stand side by side before a second row is opened.</summary>
+constexpr int BANKBOX_MAX_PRESETS_IN_A_ROW = 5;
+constexpr int BANKBOX_WRAPPED_COLUMNS = 3;
+
+/// <summary>Enough digits for the largest balance a bank may hold.</summary>
+constexpr int BANKBOX_INPUT_TEXTLIMIT = 18;
+
+/// <summary>Draws the four edges of a rectangle, which is the only border this dialog needs.</summary>
+void RenderBankBoxBorder(const RECT& rect, unsigned int color)
+{
+    const float x = static_cast<float>(rect.left);
+    const float y = static_cast<float>(rect.top);
+    const float width = static_cast<float>(rect.right - rect.left);
+    const float height = static_cast<float>(rect.bottom - rect.top);
+
+    RenderColorQuadARGB(x, y, width, 1.f, color);
+    RenderColorQuadARGB(x, y + height - 1.f, width, 1.f, color);
+    RenderColorQuadARGB(x, y + 1.f, 1.f, height - 2.f, color);
+    RenderColorQuadARGB(x + width - 1.f, y + 1.f, 1.f, height - 2.f, color);
+}
+
+/// <summary>Writes an amount with a separator every three digits, as the bank window writes it.</summary>
+void FormatBankAmount(int64_t amount, wchar_t* text, size_t textLength)
+{
+    wchar_t digits[32] = {0};
+    mu_swprintf(digits, L"%lld", static_cast<long long>(amount < 0 ? -amount : amount));
+
+    const size_t digitCount = wcslen(digits);
+    size_t written = 0;
+    if (amount < 0 && written + 1 < textLength)
+    {
+        text[written++] = L'-';
+    }
+
+    for (size_t i = 0; i < digitCount && written + 1 < textLength; ++i)
+    {
+        if (i > 0 && (digitCount - i) % 3 == 0)
+        {
+            text[written++] = L'.';
+        }
+
+        if (written + 1 < textLength)
+        {
+            text[written++] = digits[i];
+        }
+    }
+
+    text[written] = L'\0';
+}
+} // namespace
+
+SEASON3B::CNewUIBankAmountMsgBox::CNewUIBankAmountMsgBox()
+    : m_pInputBox(nullptr), m_maxButton{}, m_hasMaxButton(false), m_inputRect{}, m_okButton{}, m_cancelButton{},
+      m_hintTop(0), m_footerLineTop(0)
+{
+}
+
+SEASON3B::CNewUIBankAmountMsgBox::~CNewUIBankAmountMsgBox()
+{
+    Release();
+}
+
+bool SEASON3B::CNewUIBankAmountMsgBox::Create(const BankUI::AmountRequest& request)
+{
+    m_request = request;
+
+    // A limit of nothing is still a limit, but there is nothing for a button to fill in with it.
+    m_hasMaxButton = m_request.Limit != BankUI::UnknownLimit && m_request.Limit > 0;
+
+    BuildInfoLines();
+    BuildPresets();
+
+    AddCallbackFunc(SEASON3B::CNewUIBankAmountMsgBox::LButtonUp, MSGBOX_EVENT_MOUSE_LBUTTON_UP);
+
+    PlaceEverything();
+    return m_pInputBox != nullptr;
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::Release()
+{
+    CNewUIMessageBoxBase::Release();
+
+    SAFE_DELETE(m_pInputBox);
+
+    g_MessageBox->SetRelatedWnd(g_hWnd);
+    SetFocus(g_hWnd);
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::BuildInfoLines()
+{
+    m_infoLines.clear();
+
+    const bool offering = m_request.What == BankUI::AmountRequest::Purpose::Offer;
+    m_infoLines.push_back({I18N::Game::BankAmountInTheBank, m_request.Balance, offering});
+
+    switch (m_request.What)
+    {
+    case BankUI::AmountRequest::Purpose::Deposit:
+        if (m_request.Limit != BankUI::UnknownLimit)
+        {
+            m_infoLines.push_back({I18N::Game::BankAvailableAmount, m_request.Limit, true});
+        }
+        break;
+
+    case BankUI::AmountRequest::Purpose::Withdraw:
+        if (BankUI::IsJewelCurrency(m_request.Currency))
+        {
+            // Every jewel which comes out needs a box to appear in, so the bag is half the answer.
+            m_infoLines.push_back(
+                {I18N::Game::BankFreeInventorySlots, static_cast<int64_t>(m_request.FreeInventorySlots), false});
+        }
+
+        m_infoLines.push_back({I18N::Game::BankMovableAtMost, m_request.Limit, true});
+        break;
+
+    case BankUI::AmountRequest::Purpose::Offer:
+        break;
+    }
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::BuildPresets()
+{
+    m_presets.clear();
+
+    wchar_t caption[32] = {0};
+    for (const int64_t amount : BankUI::GetAmountPresets(m_request.Currency))
+    {
+        const BankUI::PresetLabel label = BankUI::DescribePreset(amount);
+        switch (label.Unit)
+        {
+        case BankUI::PresetUnit::Billion:
+            mu_swprintf(caption, I18N::Game::BankPresetBillions, label.Count);
+            break;
+        case BankUI::PresetUnit::Million:
+            mu_swprintf(caption, I18N::Game::BankPresetMillions, label.Count);
+            break;
+        default:
+            mu_swprintf(caption, L"%d", label.Count);
+            break;
+        }
+
+        const int64_t filled = BankUI::ClampAmount(amount, m_request.Limit);
+        m_presets.push_back({RECT{}, caption, filled, filled < amount});
+    }
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::PlaceEverything()
+{
+    const int buttonCount = static_cast<int>(m_presets.size()) + (m_hasMaxButton ? 1 : 0);
+    const int columns =
+        buttonCount <= BANKBOX_MAX_PRESETS_IN_A_ROW ? std::max(1, buttonCount) : BANKBOX_WRAPPED_COLUMNS;
+    const int rows = (buttonCount + columns - 1) / columns;
+
+    const int contentWidth = BANKBOX_WIDTH - 2 * BANKBOX_PAD;
+
+    const bool anyCapped =
+        std::any_of(m_presets.begin(), m_presets.end(), [](const PresetButton& preset) { return preset.Capped; });
+
+    // The dialog is as tall as what it holds, so a currency which has more to say about itself does
+    // not run past the bottom of its own panel.
+    int height = BANKBOX_PAD;
+    height += BANKBOX_TITLE_HEIGHT + 8 + 1 + 8;
+    height += static_cast<int>(m_infoLines.size()) * BANKBOX_LINE_HEIGHT;
+    height += 8 + BANKBOX_INPUT_HEIGHT;
+    height += 10 + rows * BANKBOX_BUTTON_HEIGHT + (rows - 1) * BANKBOX_GAP;
+    if (anyCapped)
+    {
+        height += 6 + BANKBOX_HINT_HEIGHT;
+    }
+    height += 9 + 1 + 9 + BANKBOX_BUTTON_HEIGHT + BANKBOX_PAD;
+
+    const int x = (SCREEN_WIDTH / 2) - (BANKBOX_WIDTH / 2);
+    const int y = 110;
+    if (CNewUIMessageBoxBase::Create(x, y, BANKBOX_WIDTH, height) == false)
+    {
+        return;
+    }
+
+    const int contentLeft = x + BANKBOX_PAD;
+    int cursor = y + BANKBOX_PAD + BANKBOX_TITLE_HEIGHT + 8 + 1 + 8;
+    cursor += static_cast<int>(m_infoLines.size()) * BANKBOX_LINE_HEIGHT;
+
+    cursor += 8;
+    m_inputRect = {contentLeft, cursor, contentLeft + contentWidth, cursor + BANKBOX_INPUT_HEIGHT};
+    cursor += BANKBOX_INPUT_HEIGHT + 10;
+
+    const int cellWidth = (contentWidth - (columns - 1) * BANKBOX_GAP) / columns;
+    for (int index = 0; index < buttonCount; ++index)
+    {
+        const int column = index % columns;
+        const int row = index / columns;
+        const int left = contentLeft + column * (cellWidth + BANKBOX_GAP);
+        const int top = cursor + row * (BANKBOX_BUTTON_HEIGHT + BANKBOX_GAP);
+
+        // The last column takes what the division left over, so a row ends where the panel does.
+        const int right = column == columns - 1 ? contentLeft + contentWidth : left + cellWidth;
+        const RECT rect{left, top, right, top + BANKBOX_BUTTON_HEIGHT};
+
+        if (index < static_cast<int>(m_presets.size()))
+        {
+            m_presets[index].Rect = rect;
+        }
+        else
+        {
+            m_maxButton = rect;
+        }
+    }
+
+    cursor += rows * BANKBOX_BUTTON_HEIGHT + (rows - 1) * BANKBOX_GAP;
+
+    m_hintTop = anyCapped ? cursor + 6 : 0;
+    if (anyCapped)
+    {
+        cursor += 6 + BANKBOX_HINT_HEIGHT;
+    }
+
+    m_footerLineTop = cursor + 9;
+    cursor = m_footerLineTop + 1 + 9;
+
+    const int actionWidth = (contentWidth - 8) / 2;
+    m_okButton = {contentLeft, cursor, contentLeft + actionWidth, cursor + BANKBOX_BUTTON_HEIGHT};
+    m_cancelButton = {contentLeft + actionWidth + 8, cursor, contentLeft + contentWidth,
+                      cursor + BANKBOX_BUTTON_HEIGHT};
+
+    // The heading says what is moving and of what, so the dialog is never left to be guessed at.
+    const wchar_t* pattern = I18N::Game::BankDepositTitle;
+    if (m_request.What == BankUI::AmountRequest::Purpose::Withdraw)
+    {
+        pattern = I18N::Game::BankWithdrawTitle;
+    }
+    else if (m_request.What == BankUI::AmountRequest::Purpose::Offer)
+    {
+        pattern = I18N::Game::BankOfferTitle;
+    }
+
+    wchar_t title[128] = {0};
+    mu_swprintf(title, pattern, m_request.CurrencyName != nullptr ? m_request.CurrencyName : L"");
+    m_title = title;
+
+    m_pInputBox = new CUITextInputBox;
+    const int inputBoxLeft = m_inputRect.left + BANKBOX_INPUT_LABEL_WIDTH;
+    const int inputBoxWidth = (m_inputRect.right - 8) - inputBoxLeft;
+    m_pInputBox->Init(g_hWnd, inputBoxWidth, BANKBOX_INPUT_HEIGHT - 8, BANKBOX_INPUT_TEXTLIMIT, false);
+    m_pInputBox->SetPosition(inputBoxLeft, m_inputRect.top + 4);
+    m_pInputBox->SetTextColor(255, 255, 233, 168);
+    m_pInputBox->SetBackColor(0, 0, 0, 0);
+    m_pInputBox->SetFont(g_hFont);
+    m_pInputBox->SetOption(UIOPTION_NUMBERONLY);
+    m_pInputBox->SetState(UISTATE_NORMAL);
+    m_pInputBox->GiveFocus();
+
+    // A dialog which opens with the whole limit already in it is one click away from moving
+    // everything, and one keystroke away from moving less.
+    if (m_hasMaxButton)
+    {
+        WriteAmount(m_request.Limit);
+    }
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::WriteAmount(int64_t amount)
+{
+    if (m_pInputBox == nullptr)
+    {
+        return;
+    }
+
+    // Plain digits: the box takes numbers only, and a separator typed into it is not a number.
+    wchar_t text[32] = {0};
+    mu_swprintf(text, L"%lld", static_cast<long long>(BankUI::ClampAmount(amount, m_request.Limit)));
+    m_pInputBox->SetText(text);
+}
+
+int64_t SEASON3B::CNewUIBankAmountMsgBox::GetAmount() const
+{
+    if (m_pInputBox == nullptr)
+    {
+        return 0;
+    }
+
+    wchar_t text[MAX_TEXT_LENGTH] = {
+        0,
+    };
+    m_pInputBox->GetText(text);
+
+    if (wcslen(text) == 0)
+    {
+        return 0;
+    }
+
+    errno = 0;
+    wchar_t* end = nullptr;
+    const long long value = wcstoll(text, &end, 10);
+    if (errno != 0 || end == text || value <= 0)
+    {
+        return 0;
+    }
+
+    return BankUI::ClampAmount(static_cast<int64_t>(value), m_request.Limit);
+}
+
+bool SEASON3B::CNewUIBankAmountMsgBox::IsCursorIn(const RECT& rect)
+{
+    return SEASON3B::CheckMouseIn(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+}
+
+CALLBACK_RESULT SEASON3B::CNewUIBankAmountMsgBox::LButtonUp(class CNewUIMessageBoxBase* pOwner,
+                                                            const leaf::xstreambuf& xParam)
+{
+    auto* pMsgBox = dynamic_cast<CNewUIBankAmountMsgBox*>(pOwner);
+    if (pMsgBox == nullptr)
+    {
+        return CALLBACK_CONTINUE;
+    }
+
+    for (const PresetButton& preset : pMsgBox->m_presets)
+    {
+        if (IsCursorIn(preset.Rect))
+        {
+            pMsgBox->WriteAmount(preset.Amount);
+            PlayBuffer(SOUND_CLICK01);
+            return CALLBACK_BREAK;
+        }
+    }
+
+    if (pMsgBox->m_hasMaxButton && IsCursorIn(pMsgBox->m_maxButton))
+    {
+        pMsgBox->WriteAmount(pMsgBox->m_request.Limit);
+        PlayBuffer(SOUND_CLICK01);
+        return CALLBACK_BREAK;
+    }
+
+    if (IsCursorIn(pMsgBox->m_okButton))
+    {
+        g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_USER_COMMON_OK);
+        return CALLBACK_BREAK;
+    }
+
+    if (IsCursorIn(pMsgBox->m_cancelButton))
+    {
+        g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_USER_COMMON_CANCEL);
+        return CALLBACK_BREAK;
+    }
+
+    return CALLBACK_CONTINUE;
+}
+
+bool SEASON3B::CNewUIBankAmountMsgBox::Update()
+{
+    if (m_pInputBox == nullptr)
+    {
+        return true;
+    }
+
+    m_pInputBox->DoAction();
+
+    if (m_pInputBox->HaveFocus() && g_MessageBox->GetRelatedWnd() != m_pInputBox->GetHandle())
+    {
+        g_MessageBox->SetRelatedWnd(m_pInputBox->GetHandle());
+    }
+    if (false == m_pInputBox->HaveFocus() && g_MessageBox->GetRelatedWnd() != g_hWnd)
+    {
+        g_MessageBox->SetRelatedWnd(g_hWnd);
+    }
+
+    return true;
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderPlate(const RECT& rect, bool hovered, bool highlighted, bool dimmed)
+{
+    unsigned int plate = BANKBOX_BUTTON_UP_COLOR;
+    unsigned int edge = BANKBOX_BUTTON_EDGE_COLOR;
+
+    if (dimmed)
+    {
+        plate = BANKBOX_BUTTON_DIM_COLOR;
+        edge = BANKBOX_BUTTON_DIM_EDGE_COLOR;
+    }
+    else if (hovered)
+    {
+        plate = BANKBOX_BUTTON_OVER_COLOR;
+    }
+
+    if (highlighted)
+    {
+        edge = BANKBOX_BUTTON_EDGE_ON_COLOR;
+    }
+
+    RenderColorQuadARGB(static_cast<float>(rect.left), static_cast<float>(rect.top),
+                        static_cast<float>(rect.right - rect.left), static_cast<float>(rect.bottom - rect.top), plate);
+    RenderBankBoxBorder(rect, edge);
+    EndRenderColor();
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderFrame()
+{
+    const POINT& pos = GetPos();
+    const SIZE& size = GetSize();
+
+    RenderColorQuadARGB(static_cast<float>(pos.x), static_cast<float>(pos.y), static_cast<float>(size.cx),
+                        static_cast<float>(size.cy), BANKBOX_PANEL_COLOR);
+
+    const RECT outer{pos.x, pos.y, pos.x + size.cx, pos.y + size.cy};
+    const RECT inner{pos.x + 1, pos.y + 1, pos.x + size.cx - 1, pos.y + size.cy - 1};
+    RenderBankBoxBorder(outer, BANKBOX_PANEL_EDGE_COLOR);
+    RenderBankBoxBorder(inner, BANKBOX_PANEL_INNER_COLOR);
+
+    // The line under the heading, and the one over the buttons which finish the dialog.
+    const float lineLeft = static_cast<float>(pos.x + BANKBOX_PAD);
+    const float lineWidth = static_cast<float>(size.cx - 2 * BANKBOX_PAD);
+    RenderColorQuadARGB(lineLeft, static_cast<float>(pos.y + BANKBOX_PAD + BANKBOX_TITLE_HEIGHT + 8), lineWidth, 1.f,
+                        BANKBOX_DIVIDER_COLOR);
+    RenderColorQuadARGB(lineLeft, static_cast<float>(m_footerLineTop), lineWidth, 1.f, BANKBOX_DIVIDER_COLOR);
+
+    RenderColorQuadARGB(static_cast<float>(m_inputRect.left), static_cast<float>(m_inputRect.top),
+                        static_cast<float>(m_inputRect.right - m_inputRect.left),
+                        static_cast<float>(m_inputRect.bottom - m_inputRect.top), BANKBOX_INPUT_BACK_COLOR);
+    RenderBankBoxBorder(m_inputRect, BANKBOX_INPUT_EDGE_COLOR);
+    EndRenderColor();
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderTitle()
+{
+    const POINT& pos = GetPos();
+
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(240, 220, 164, 255);
+    g_pRenderText->RenderText(pos.x + BANKBOX_PAD, pos.y + BANKBOX_PAD, m_title.c_str(),
+                              BANKBOX_WIDTH - 2 * BANKBOX_PAD, 0, RT3_SORT_CENTER);
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderInfoLines()
+{
+    const POINT& pos = GetPos();
+    const int left = pos.x + BANKBOX_PAD;
+    const int width = BANKBOX_WIDTH - 2 * BANKBOX_PAD;
+
+    int top = pos.y + BANKBOX_PAD + BANKBOX_TITLE_HEIGHT + 8 + 1 + 8;
+
+    wchar_t value[64] = {0};
+    for (const InfoLine& line : m_infoLines)
+    {
+        g_pRenderText->SetFont(g_hFont);
+        g_pRenderText->SetBgColor(0);
+        g_pRenderText->SetTextColor(143, 184, 232, 255);
+        g_pRenderText->RenderText(left, top, line.Label.c_str(), width, 0);
+
+        FormatBankAmount(line.Value, value, std::size(value));
+
+        if (line.Highlighted)
+        {
+            g_pRenderText->SetFont(g_hFontBold);
+            g_pRenderText->SetTextColor(255, 210, 76, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(220, 214, 200, 255);
+        }
+
+        g_pRenderText->RenderText(left, top, value, width, 0, RT3_SORT_RIGHT);
+        top += BANKBOX_LINE_HEIGHT;
+    }
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetTextColor(110, 102, 86, 255);
+    g_pRenderText->RenderText(m_inputRect.left + 8, m_inputRect.top + BANKBOX_BUTTON_TEXT_TOP,
+                              I18N::Game::BankAmountLabel, BANKBOX_INPUT_LABEL_WIDTH, 0);
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderPresets()
+{
+    for (const PresetButton& preset : m_presets)
+    {
+        RenderPlate(preset.Rect, IsCursorIn(preset.Rect), false, preset.Capped);
+
+        g_pRenderText->SetFont(g_hFont);
+        g_pRenderText->SetBgColor(0);
+        if (preset.Capped)
+        {
+            g_pRenderText->SetTextColor(140, 132, 114, 255);
+        }
+        else
+        {
+            g_pRenderText->SetTextColor(240, 220, 164, 255);
+        }
+
+        g_pRenderText->RenderText(preset.Rect.left, preset.Rect.top + BANKBOX_BUTTON_TEXT_TOP, preset.Caption.c_str(),
+                                  preset.Rect.right - preset.Rect.left, 0, RT3_SORT_CENTER);
+    }
+
+    if (m_hasMaxButton)
+    {
+        RenderPlate(m_maxButton, IsCursorIn(m_maxButton), true, false);
+
+        g_pRenderText->SetFont(g_hFontBold);
+        g_pRenderText->SetBgColor(0);
+        g_pRenderText->SetTextColor(255, 233, 168, 255);
+        g_pRenderText->RenderText(m_maxButton.left, m_maxButton.top + BANKBOX_BUTTON_TEXT_TOP,
+                                  I18N::Game::BankMaximumAmountButton, m_maxButton.right - m_maxButton.left, 0,
+                                  RT3_SORT_CENTER);
+    }
+
+    if (m_hintTop > 0)
+    {
+        g_pRenderText->SetFont(g_hFont);
+        g_pRenderText->SetBgColor(0);
+        g_pRenderText->SetTextColor(168, 156, 128, 255);
+        g_pRenderText->RenderText(GetPos().x + BANKBOX_PAD, m_hintTop, I18N::Game::BankPresetIsCapped,
+                                  BANKBOX_WIDTH - 2 * BANKBOX_PAD, 0);
+    }
+}
+
+void SEASON3B::CNewUIBankAmountMsgBox::RenderActionButtons()
+{
+    RenderPlate(m_okButton, IsCursorIn(m_okButton), true, false);
+    RenderPlate(m_cancelButton, IsCursorIn(m_cancelButton), false, false);
+
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(255, 233, 168, 255);
+    g_pRenderText->RenderText(m_okButton.left, m_okButton.top + BANKBOX_BUTTON_TEXT_TOP, I18N::Game::OK,
+                              m_okButton.right - m_okButton.left, 0, RT3_SORT_CENTER);
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetTextColor(240, 220, 164, 255);
+    g_pRenderText->RenderText(m_cancelButton.left, m_cancelButton.top + BANKBOX_BUTTON_TEXT_TOP, I18N::Game::Cancel,
+                              m_cancelButton.right - m_cancelButton.left, 0, RT3_SORT_CENTER);
+}
+
+bool SEASON3B::CNewUIBankAmountMsgBox::Render()
+{
+    EnableAlphaTest();
+
+    RenderFrame();
+    RenderTitle();
+    RenderInfoLines();
+    RenderPresets();
+    RenderActionButtons();
+
+    if (m_pInputBox)
+    {
+        m_pInputBox->Render();
+    }
+
+    DisableAlphaBlend();
+    return true;
+}
+
 bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
 {
-    CNewUITextInputMsgBox* pMsgBox = GetMsgBox();
+    CNewUIBankAmountMsgBox* pMsgBox = GetMsgBox();
     if (0 == pMsgBox)
         return false;
 
-    if (false ==
-        pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL, INPUTBOX_TYPE_NUMBER, INPUT_WIDTH, INPUT_HEIGHT, INPUT_TEXTLIMIT))
+    if (false == pMsgBox->Create(g_pBankWindow->GetAmountInputContext()))
         return false;
 
-    pMsgBox->SetInputBoxOption(UIOPTION_NUMBERONLY | UIOPTION_PAINTBACK);
-    pMsgBox->AddMsg(I18N::Game::BankEnterTheAmount);
     pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::ReturnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
     pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
     pMsgBox->AddCallbackFunc(CBankAmountMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
@@ -4677,20 +5269,16 @@ bool SEASON3B::CBankAmountMsgBoxLayout::SetLayout()
 CALLBACK_RESULT SEASON3B::CBankAmountMsgBoxLayout::ProcessOk(class CNewUIMessageBoxBase* pOwner,
                                                              const leaf::xstreambuf& xParam)
 {
-    auto* pMsgBox = dynamic_cast<CNewUITextInputMsgBox*>(pOwner);
+    auto* pMsgBox = dynamic_cast<CNewUIBankAmountMsgBox*>(pOwner);
     if (pMsgBox == nullptr)
     {
         return CALLBACK_CONTINUE;
     }
 
-    wchar_t strText[MAX_TEXT_LENGTH] = {
-        0,
-    };
-    pMsgBox->GetInputBoxText(strText);
-
-    const int64_t amount = ReadBankAmount(strText);
+    const int64_t amount = pMsgBox->GetAmount();
     if (amount == 0)
     {
+        // Nothing usable was typed, so the dialog stays open instead of sending an amount of zero.
         return CALLBACK_CONTINUE;
     }
 

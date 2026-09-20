@@ -15,6 +15,7 @@
 #include "Render/Textures/ZzzOpenglUtil.h"
 #include "UI/Chat/Chat.h"
 #include "UI/NewUI/Dialogs/NewUICustomMessageBox.h"
+#include "UI/NewUI/Inventory/BankCurrencyInfo.h"
 #include "UI/NewUI/Inventory/NewUIItemMng.h"
 #include "UI/NewUI/NewUICommon.h"
 #include "UI/NewUI/NewUISystem.h"
@@ -132,10 +133,31 @@ constexpr int TILE_TEXT_INSET = 2;
 /// <summary>How many rows a dropdown of the market shows before it starts to scroll.</summary>
 constexpr int MAX_FILTER_ROWS = 10;
 
+/// <summary>Where the picture of a currency is drawn, and how large it is.</summary>
+/// <remarks>
+/// The picture stands inside the row rather than beside it, so a row which is picked draws its
+/// plate around the picture as well - the name and the picture are one thing to click on.
+/// </remarks>
+constexpr int CURRENCY_ICON_X = 20;
+constexpr int CURRENCY_ICON_SIZE = 18;
+
+/// <summary>How far under the top of its coin the letter of a currency sits.</summary>
+constexpr int COIN_GLYPH_TOP = 1;
+
 /// <summary>Where the name of a currency and where its amount are written.</summary>
-constexpr int CURRENCY_NAME_X = 26;
-constexpr int CURRENCY_NAME_WIDTH = 180;
+constexpr int CURRENCY_NAME_X = 42;
+constexpr int CURRENCY_NAME_WIDTH = 164;
 constexpr int CURRENCY_AMOUNT_X = 206;
+
+/// <summary>
+/// How far the columns of the ledger stand from the edge of the window.
+/// </summary>
+/// <remarks>
+/// This used to be <see cref="CURRENCY_NAME_X"/>, which the two lists happened to share until the
+/// names of the currencies moved right to make room for their pictures. The ledger has no pictures
+/// and did not move, so it keeps the inset it always had instead of following that one.
+/// </remarks>
+constexpr int LEDGER_SIDE_INSET = 26;
 
 /// <summary>How far the amount of a currency stops short of the edge of the window.</summary>
 constexpr int CURRENCY_AMOUNT_END = 26;
@@ -470,8 +492,8 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     constexpr int detailColumnShare = 28;
     constexpr int amountColumnShare = 27;
 
-    const int listLeft = CURRENCY_NAME_X;
-    const int listRight = layout.width - CURRENCY_NAME_X;
+    const int listLeft = LEDGER_SIDE_INSET;
+    const int listRight = layout.width - LEDGER_SIDE_INSET;
     const int listWidth = std::max(1, listRight - listLeft);
 
     layout.ledgerTimeX = listLeft;
@@ -995,6 +1017,15 @@ void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
 {
     const auto currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
 
+    // The dialog cuts what was typed down to what may move, but a player who typed a number by
+    // hand and pressed return went past its buttons, so the last word on it is here.
+    amount = BankUI::ClampAmount(amount, GetAmountInputContext().Limit);
+    if (amount <= 0)
+    {
+        m_pendingInput = PendingInput::None;
+        return;
+    }
+
     switch (m_pendingInput)
     {
     case PendingInput::DepositAmount:
@@ -1019,6 +1050,66 @@ void SEASON3B::CNewUIBankWindow::FinishValueAmount(int64_t amount)
 const wchar_t* SEASON3B::CNewUIBankWindow::GetPriceCurrencyName() const
 {
     return GetCurrencyName(static_cast<Net::Bank::Currency>(m_priceCurrency));
+}
+
+SEASON3B::BankUI::AmountRequest SEASON3B::CNewUIBankWindow::GetAmountInputContext() const
+{
+    BankUI::AmountRequest context;
+    context.Currency = static_cast<Net::Bank::Currency>(m_selectedCurrency);
+    context.CurrencyName = GetCurrencyName(context.Currency);
+    context.Balance = Net::Bank::Store::Instance().GetBalance(context.Currency);
+
+    switch (m_pendingInput)
+    {
+    case PendingInput::WithdrawAmount:
+        context.What = BankUI::AmountRequest::Purpose::Withdraw;
+        break;
+    case PendingInput::OfferAmount:
+        context.What = BankUI::AmountRequest::Purpose::Offer;
+        break;
+    default:
+        context.What = BankUI::AmountRequest::Purpose::Deposit;
+        break;
+    }
+
+    // What the character has of the currency: its zen, or the jewels of that kind it is carrying.
+    // The balances of the cash shop are on the account and are not among them.
+    int64_t carried = 0;
+    CNewUIInventoryCtrl* pInventory = g_pMyInventory != nullptr ? g_pMyInventory->GetInventoryCtrl() : nullptr;
+    const short jewelType = BankUI::GetJewelItemType(context.Currency);
+
+    if (pInventory != nullptr)
+    {
+        context.FreeInventorySlots = pInventory->GetEmptySlotCount();
+
+        if (jewelType >= 0)
+        {
+            carried = pInventory->GetItemCount(jewelType);
+        }
+    }
+
+    if (context.Currency == Net::Bank::Currency::Zen)
+    {
+        carried = static_cast<int64_t>(CharacterMachine->Gold);
+    }
+
+    switch (context.What)
+    {
+    case BankUI::AmountRequest::Purpose::Deposit:
+        context.Limit = BankUI::GetDepositLimit(context.Currency, carried);
+        break;
+    case BankUI::AmountRequest::Purpose::Withdraw:
+        context.Limit =
+            BankUI::GetWithdrawLimit(context.Currency, context.Balance, static_cast<int64_t>(CharacterMachine->Gold),
+                                     context.FreeInventorySlots);
+        break;
+    case BankUI::AmountRequest::Purpose::Offer:
+        // What is offered leaves the bank, so the bank is the only thing which limits it.
+        context.Limit = std::max<int64_t>(0, context.Balance);
+        break;
+    }
+
+    return context;
 }
 
 void SEASON3B::CNewUIBankWindow::CancelPendingInput()
@@ -1510,6 +1601,18 @@ int SEASON3B::CNewUIBankWindow::GetCurrencyRowTop(int currency) const
     return m_Pos.y + (isMoney ? m_layout.moneyRowsTop : m_layout.jewelRowsTop) + rowInGroup * m_layout.listLineHeight;
 }
 
+void SEASON3B::CNewUIBankWindow::GetCurrencyIconRect(int currency, RECT& rect) const
+{
+    // The picture is as tall as it is wide and sits in the middle of its row, so a row which grows
+    // taller keeps it centred instead of leaving it at the top.
+    const int top = GetCurrencyRowTop(currency) + (m_layout.listLineHeight - CURRENCY_ICON_SIZE) / 2;
+
+    rect.left = m_Pos.x + CURRENCY_ICON_X;
+    rect.top = top;
+    rect.right = rect.left + CURRENCY_ICON_SIZE;
+    rect.bottom = top + CURRENCY_ICON_SIZE;
+}
+
 void SEASON3B::CNewUIBankWindow::GetOfferTileRect(int tile, RECT& rect) const
 {
     const int column = tile % m_layout.marketTileColumns;
@@ -1869,6 +1972,19 @@ void SEASON3B::CNewUIBankWindow::RenderValuesPage()
             else
             {
                 UseTextColor(ROW_TEXT);
+            }
+
+            if (group == 0)
+            {
+                // The jewels of the group below draw their pictures in the 3d pass; a coin is not
+                // an item and is drawn here, with the rest of the page.
+                RECT iconRect;
+                GetCurrencyIconRect(currency, iconRect);
+                RenderCurrencyCoin(iconRect, static_cast<Net::Bank::Currency>(currency));
+
+                // The coin wrote in its own colour and font, so the row takes both back.
+                g_pRenderText->SetFont(g_hFont);
+                UseTextColor(currency == m_selectedCurrency ? PICKED_ROW_TEXT : ROW_TEXT);
             }
 
             g_pRenderText->RenderText(m_Pos.x + CURRENCY_NAME_X, top + LIST_ROW_TEXT_TOP,
@@ -2301,6 +2417,10 @@ void SEASON3B::CNewUIBankWindow::Render3D()
     {
         RenderStorageItems3D();
     }
+    else if (m_page == Page::Values)
+    {
+        RenderValueIcons3D();
+    }
     else if (m_page == Page::Market)
     {
         RenderOfferItems3D();
@@ -2325,7 +2445,28 @@ void SEASON3B::CNewUIBankWindow::RenderStorageItems3D()
 
         RECT rect;
         GetTileRect(slotOnPage, rect);
-        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.tileSize, m_layout.tileSize);
+        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.tileSize, m_layout.tileSize, PICTURE_MARGIN);
+    }
+}
+
+void SEASON3B::CNewUIBankWindow::RenderValueIcons3D()
+{
+    for (int currency = MONEY_CURRENCY_COUNT; currency < static_cast<int>(Net::Bank::Currency::Count); ++currency)
+    {
+        const short type = BankUI::GetJewelItemType(static_cast<Net::Bank::Currency>(currency));
+        if (type < 0)
+        {
+            continue;
+        }
+
+        // The row draws a jewel, not one the player owns, so the item is built here and thrown
+        // away again rather than taken from the item manager, which keeps what it hands out.
+        ITEM jewel{};
+        jewel.Type = type;
+
+        RECT rect;
+        GetCurrencyIconRect(currency, rect);
+        RenderItemPicture(jewel, rect.left, rect.top, CURRENCY_ICON_SIZE, CURRENCY_ICON_SIZE, 0);
     }
 }
 
@@ -2352,7 +2493,8 @@ void SEASON3B::CNewUIBankWindow::RenderOfferItems3D()
         GetOfferTileRect(tile, rect);
 
         // Only the upper part of a box holds the picture; under it stands what the offer costs.
-        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketPictureHeight);
+        RenderItemPicture(*pItem, rect.left, rect.top, m_layout.marketTileWidth, m_layout.marketPictureHeight,
+                          PICTURE_MARGIN);
     }
 }
 
@@ -2366,14 +2508,49 @@ void SEASON3B::CNewUIBankWindow::RenderTilePlate(const RECT& rect, unsigned int 
     RenderBorder(rect.left, rect.top, width, height, TILE_LINE_COLOR, 1);
 }
 
-void SEASON3B::CNewUIBankWindow::RenderItemPicture(const ITEM& item, int left, int top, int width, int height)
+void SEASON3B::CNewUIBankWindow::RenderCurrencyCoin(const RECT& rect, Net::Bank::Currency currency)
+{
+    const BankUI::CoinColors colors = BankUI::GetCoinColors(currency);
+
+    const float left = static_cast<float>(rect.left);
+    const float top = static_cast<float>(rect.top);
+    const float size = static_cast<float>(rect.right - rect.left);
+
+    // Two crossed quads make an octagon, and an octagon this small reads as a coin. The rim is one
+    // such shape and the face a smaller one inside it, so the coin keeps its edge at any size.
+    const float rimCorner = size / 6.f;
+    const float faceInset = size / 9.f;
+
+    RenderColorQuadARGB(left, top + rimCorner, size, size - 2.f * rimCorner, colors.Edge);
+    RenderColorQuadARGB(left + rimCorner, top, size - 2.f * rimCorner, size, colors.Edge);
+
+    const float faceSize = size - 2.f * faceInset;
+    RenderColorQuadARGB(left + faceInset, top + faceInset + faceInset, faceSize, faceSize - 2.f * faceInset,
+                        colors.Face);
+    RenderColorQuadARGB(left + faceInset + faceInset, top + faceInset, faceSize - 2.f * faceInset, faceSize,
+                        colors.Face);
+    EndRenderColor();
+
+    // The letter is written in the colour of the rim, which is the darkest of the two and the only
+    // one the face is guaranteed to be read against.
+    g_pRenderText->SetFont(g_hFontBold);
+    g_pRenderText->SetBgColor(0);
+    g_pRenderText->SetTextColor(static_cast<int>((colors.Edge >> 16) & 0xFFu),
+                                static_cast<int>((colors.Edge >> 8) & 0xFFu), static_cast<int>(colors.Edge & 0xFFu),
+                                255);
+    g_pRenderText->RenderText(rect.left, rect.top + COIN_GLYPH_TOP, BankUI::GetCoinGlyph(currency),
+                              rect.right - rect.left, 0, RT3_SORT_CENTER);
+}
+
+void SEASON3B::CNewUIBankWindow::RenderItemPicture(const ITEM& item, int left, int top, int width, int height,
+                                                   int margin)
 {
     // Every box is the same size, so the picture keeps the proportions of the item and is drawn as
     // large as it can be inside its box.
     const ITEM_ATTRIBUTE* pItemAttr = &ItemAttribute[item.Type];
     const int columns = pItemAttr->Width > 0 ? pItemAttr->Width : 1;
     const int rows = pItemAttr->Height > 0 ? pItemAttr->Height : 1;
-    const int room = std::max(1, std::min(width, height) - PICTURE_MARGIN);
+    const int room = std::max(1, std::min(width, height) - margin);
     const float scale = static_cast<float>(room) / static_cast<float>(std::max(columns, rows));
     const float pictureWidth = columns * scale;
     const float pictureHeight = rows * scale;

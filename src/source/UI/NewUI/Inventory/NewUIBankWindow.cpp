@@ -461,8 +461,8 @@ void SEASON3B::CNewUIBankWindow::BuildLayout()
     // the picture, whatever height the row ended up with.
     layout.valueTextTop = std::max(0, (layout.valueLineHeight - LIST_TEXT_HEIGHT) / 2);
 
-    const int groupGap = std::clamp(
-        valueRoom - groupCount * VALUE_HEADING_HEIGHT - listRows * layout.valueLineHeight, 0, maximumGroupGap);
+    const int groupGap = std::clamp(valueRoom - groupCount * VALUE_HEADING_HEIGHT - listRows * layout.valueLineHeight,
+                                    0, maximumGroupGap);
 
     layout.moneyHeaderTop = layout.contentTop;
     layout.moneyRowsTop = layout.moneyHeaderTop + VALUE_HEADING_HEIGHT;

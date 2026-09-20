@@ -4959,7 +4959,6 @@ void SEASON3B::CNewUIBankAmountMsgBox::PlaceEverything()
     {
         WriteAmount(m_request.Limit);
     }
-
 }
 
 void SEASON3B::CNewUIBankAmountMsgBox::WriteAmount(int64_t amount)

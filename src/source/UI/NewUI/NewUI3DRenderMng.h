@@ -22,7 +22,7 @@
 // pictures where its own depth puts it. On the camera of the inventory, at 5.5, every picture of
 // the bank went under the panel of the bank - which is 93% opaque, so what was left of a jewel was
 // a smudge. This camera stands just above that panel instead.
-#define BANK_CAMERA_Z_ORDER				5.95f
+#define BANK_CAMERA_Z_ORDER 5.95f
 
 namespace SEASON3B
 {

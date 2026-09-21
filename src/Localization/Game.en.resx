@@ -13372,4 +13372,79 @@
   <data name="Menu exit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="Events" xml:space="preserve">
+    <value>Events</value>
+  </data>
+  <data name="Event column name" xml:space="preserve">
+    <value>Event</value>
+  </data>
+  <data name="Event column state" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="Event column remaining" xml:space="preserve">
+    <value>Remaining</value>
+  </data>
+  <data name="Event state unscheduled" xml:space="preserve">
+    <value>Not scheduled</value>
+  </data>
+  <data name="Event state waiting" xml:space="preserve">
+    <value>Starts in</value>
+  </data>
+  <data name="Event state entrance open" xml:space="preserve">
+    <value>Entrance open</value>
+  </data>
+  <data name="Event state running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="Event join" xml:space="preserve">
+    <value>Join</value>
+  </data>
+  <data name="Event refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Event previous page" xml:space="preserve">
+    <value>Prev</value>
+  </data>
+  <data name="Event next page" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Event page of" xml:space="preserve">
+    <value>%d / %d</value>
+  </data>
+  <data name="Event list is empty" xml:space="preserve">
+    <value>This server runs no events.</value>
+  </data>
+  <data name="Event players inside" xml:space="preserve">
+    <value>%d inside</value>
+  </data>
+  <data name="Event joined" xml:space="preserve">
+    <value>You are entering %s.</value>
+  </data>
+  <data name="Event join failed" xml:space="preserve">
+    <value>You cannot enter %s right now.</value>
+  </data>
+  <data name="Event join not open" xml:space="preserve">
+    <value>The entrance of %s is closed.</value>
+  </data>
+  <data name="Event join level too high" xml:space="preserve">
+    <value>Your level is too high for %s.</value>
+  </data>
+  <data name="Event join level too low" xml:space="preserve">
+    <value>Your level is too low for %s.</value>
+  </data>
+  <data name="Event join full" xml:space="preserve">
+    <value>%s is full.</value>
+  </data>
+  <data name="Event join not enough money" xml:space="preserve">
+    <value>You cannot pay the entrance fee of %s.</value>
+  </data>
+  <data name="Event join player killer" xml:space="preserve">
+    <value>A player killer cannot enter %s.</value>
+  </data>
+  <data name="Event join unknown" xml:space="preserve">
+    <value>This server no longer runs that event.</value>
+  </data>
+  <data name="Event join not joinable" xml:space="preserve">
+    <value>%s cannot be joined.</value>
+  </data>
 </root>

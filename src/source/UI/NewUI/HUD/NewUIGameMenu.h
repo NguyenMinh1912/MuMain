@@ -56,6 +56,7 @@ public:
     /// </summary>
     enum class Entry
     {
+        Events,
         Bank,
         Market,
         MoveMap,

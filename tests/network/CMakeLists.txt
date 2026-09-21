@@ -14,6 +14,14 @@ mu_add_test(
 )
 
 mu_add_test(
+    NAME test_event_packets
+    SOURCES
+        test_event_packets.cpp
+    LINK_LIBS
+        MuClient
+)
+
+mu_add_test(
     NAME test_chat_command_catalog
     SOURCES
         test_chat_command_catalog.cpp

@@ -13380,4 +13380,79 @@
   <data name="Menu exit" xml:space="preserve">
     <value>Thoát</value>
   </data>
+  <data name="Events" xml:space="preserve">
+    <value>Sự kiện</value>
+  </data>
+  <data name="Event column name" xml:space="preserve">
+    <value>Sự kiện</value>
+  </data>
+  <data name="Event column state" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Event column remaining" xml:space="preserve">
+    <value>Còn lại</value>
+  </data>
+  <data name="Event state unscheduled" xml:space="preserve">
+    <value>Chưa lên lịch</value>
+  </data>
+  <data name="Event state waiting" xml:space="preserve">
+    <value>Sắp diễn ra</value>
+  </data>
+  <data name="Event state entrance open" xml:space="preserve">
+    <value>Đang mở cửa</value>
+  </data>
+  <data name="Event state running" xml:space="preserve">
+    <value>Đang diễn ra</value>
+  </data>
+  <data name="Event join" xml:space="preserve">
+    <value>Vào</value>
+  </data>
+  <data name="Event refresh" xml:space="preserve">
+    <value>Làm mới</value>
+  </data>
+  <data name="Event previous page" xml:space="preserve">
+    <value>Trước</value>
+  </data>
+  <data name="Event next page" xml:space="preserve">
+    <value>Sau</value>
+  </data>
+  <data name="Event page of" xml:space="preserve">
+    <value>%d / %d</value>
+  </data>
+  <data name="Event list is empty" xml:space="preserve">
+    <value>Máy chủ này chưa có sự kiện nào.</value>
+  </data>
+  <data name="Event players inside" xml:space="preserve">
+    <value>%d người bên trong</value>
+  </data>
+  <data name="Event joined" xml:space="preserve">
+    <value>Đang vào %s.</value>
+  </data>
+  <data name="Event join failed" xml:space="preserve">
+    <value>Chưa thể vào %s lúc này.</value>
+  </data>
+  <data name="Event join not open" xml:space="preserve">
+    <value>Cửa vào %s đã đóng.</value>
+  </data>
+  <data name="Event join level too high" xml:space="preserve">
+    <value>Cấp độ của bạn quá cao so với %s.</value>
+  </data>
+  <data name="Event join level too low" xml:space="preserve">
+    <value>Cấp độ của bạn quá thấp so với %s.</value>
+  </data>
+  <data name="Event join full" xml:space="preserve">
+    <value>%s đã đủ người.</value>
+  </data>
+  <data name="Event join not enough money" xml:space="preserve">
+    <value>Bạn không đủ tiền vào %s.</value>
+  </data>
+  <data name="Event join player killer" xml:space="preserve">
+    <value>Nhân vật đang bị truy nã không thể vào %s.</value>
+  </data>
+  <data name="Event join unknown" xml:space="preserve">
+    <value>Máy chủ này không còn chạy sự kiện đó.</value>
+  </data>
+  <data name="Event join not joinable" xml:space="preserve">
+    <value>Không thể tham gia %s.</value>
+  </data>
 </root>

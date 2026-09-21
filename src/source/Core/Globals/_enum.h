@@ -120,6 +120,8 @@ enum INTERFACE_LIST
     // The menu of the hud: the quick grid the menu button opens, and the full panel behind it.
     // Appended at the end for the same reason the bank was.
     INTERFACE_GAME_MENU,
+    // The list of the events of the game server, which is not part of the original client either.
+    INTERFACE_EVENT_LIST,
     INTERFACE_END,
     INTERFACE_COUNT = INTERFACE_END - 2,
 };

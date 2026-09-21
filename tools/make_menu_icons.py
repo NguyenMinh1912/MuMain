@@ -101,6 +101,10 @@ ICONS = [
     [[(16, 6), (16, 15)], arc(16, 17, 9, -60, 240)],
     # 18 show all
     [rect(5, 5, 10, 10), rect(17, 5, 10, 10), rect(5, 17, 10, 10), rect(17, 17, 10, 10)],
+    # 19 events - a calendar, because what the window lists is a timetable
+    [rect(5, 8, 22, 19), [(5, 14), (27, 14)], [(11, 5), (11, 10)], [(21, 5), (21, 10)],
+     circle(11, 19, 1.1), circle(16, 19, 1.1), circle(21, 19, 1.1), circle(11, 23.5, 1.1),
+     circle(16, 23.5, 1.1)],
 ]
 
 

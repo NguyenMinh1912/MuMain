@@ -236,6 +236,45 @@ void PacketFunctions_ClientToServer_Custom::SendBankLedger(BYTE page)
     dotnet_SendBankLedger(this->GetHandle(), page);
 }
 
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendEventListFn)(int32_t);
+
+void PacketFunctions_ClientToServer_Custom::SendEventList()
+{
+    static SendEventListFn dotnet_SendEventList = nullptr;
+    if (!dotnet_SendEventList)
+    {
+        dotnet_SendEventList = LoadManagedSymbol<SendEventListFn>("ConnectionManager_SendEventList");
+        if (!dotnet_SendEventList)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendEventList(this->GetHandle());
+}
+
+typedef void(CORECLR_DELEGATE_CALLTYPE* SendEventJoinFn)(int32_t, const BYTE*);
+
+void PacketFunctions_ClientToServer_Custom::SendEventJoin(const BYTE* eventId)
+{
+    if (eventId == nullptr)
+    {
+        return;
+    }
+
+    static SendEventJoinFn dotnet_SendEventJoin = nullptr;
+    if (!dotnet_SendEventJoin)
+    {
+        dotnet_SendEventJoin = LoadManagedSymbol<SendEventJoinFn>("ConnectionManager_SendEventJoin");
+        if (!dotnet_SendEventJoin)
+        {
+            return;
+        }
+    }
+
+    dotnet_SendEventJoin(this->GetHandle(), eventId);
+}
+
 typedef void(CORECLR_DELEGATE_CALLTYPE* SendAuthenticateExtFn)(int32_t, uint16_t, uint32_t);
 
 void PacketFunctions_ChatServer_Custom::SendAuthenticateExt(uint16_t roomId, uint32_t token)

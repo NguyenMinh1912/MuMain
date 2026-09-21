@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Core/Utilities/Log/MuLogger.h"
 #include "Network/Server/BankPackets.h"
+#include "Network/Server/EventPackets.h"
 #include "UI/Chat/Chat.h"
 #include <memory>
 #include "UI/Legacy/UIManager.h"
@@ -14394,6 +14395,11 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         // players. The whole group is parsed in one place, which only fills the store the bank
         // dialog draws from.
         Net::Bank::HandlePacket(received_span);
+        break;
+    case Net::Event::PacketCode:
+        // Not part of the original protocol: the events this game server runs. The whole group is
+        // parsed in one place, which only fills the store the event list window draws from.
+        Net::Event::HandlePacket(received_span);
         break;
     case 0x3F:
     {

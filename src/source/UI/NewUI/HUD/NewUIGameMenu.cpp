@@ -102,6 +102,7 @@ enum IconCell
     ICON_COMMANDS,
     ICON_EXIT,
     ICON_SHOW_ALL,
+    ICON_EVENTS,
 };
 
 /// <summary>The colour a picture is tinted with, which is the colour its name is written in.</summary>
@@ -117,6 +118,8 @@ DWORD GetEntryInterface(CNewUIGameMenu::Entry entry)
 
     switch (entry)
     {
+    case Entry::Events:
+        return INTERFACE_EVENT_LIST;
     case Entry::Bank:
     case Entry::Market:
         return INTERFACE_BANK;
@@ -303,6 +306,7 @@ std::span<const SEASON3B::CNewUIGameMenu::EntryInfo> SEASON3B::CNewUIGameMenu::G
     };
 
     static const EntryInfo HIGHLIGHT[] = {
+        {Entry::Events, ICON_EVENTS, &I18N::Game::Events},
         {Entry::Bank, ICON_BANK, &I18N::Game::MenuBank},
         {Entry::Market, ICON_MARKET, &I18N::Game::MenuMarket},
         {Entry::MoveMap, ICON_MOVE_MAP, &I18N::Game::MenuMoveMap},
@@ -535,6 +539,10 @@ void SEASON3B::CNewUIGameMenu::Activate(Entry entry)
         {
             g_pNewUISystem->Toggle(INTERFACE_GENSRANKING);
         }
+        break;
+
+    case Entry::Events:
+        g_pNewUISystem->Toggle(INTERFACE_EVENT_LIST);
         break;
 
     case Entry::Options:

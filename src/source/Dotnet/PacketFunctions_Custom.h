@@ -172,6 +172,22 @@ public:
     /// <param name="page">The page to show, starting at 0.</param>
     /// <remarks>Not part of the original protocol (0xFB, 0x09).</remarks>
     void SendBankLedger(BYTE page);
+
+    /// <summary>
+    /// Sends the request to list the events which this game server runs.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the original protocol (0xFC, 0x01). The events are reached from the menu at the
+    /// bottom right rather than by talking to an npc.
+    /// </remarks>
+    void SendEventList();
+
+    /// <summary>
+    /// Sends the request to join an event of the list.
+    /// </summary>
+    /// <param name="eventId">The identifier of the event, as it arrived.</param>
+    /// <remarks>Not part of the original protocol (0xFC, 0x02).</remarks>
+    void SendEventJoin(const BYTE* eventId);
 };
 
 /// <summary>

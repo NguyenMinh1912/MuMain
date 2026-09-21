@@ -65,6 +65,7 @@ CNewUISystem::CNewUISystem()
     m_pNewGateSwitchWindow = nullptr;
     m_pNewBankWindow = nullptr;
     m_pNewGameMenu = nullptr;
+    m_pNewEventListWindow = nullptr;
     m_pNewStorageInventory = nullptr;
     m_pNewStorageInventoryExt = nullptr;
     m_pNewGuildInfoWindow = nullptr;
@@ -278,6 +279,13 @@ bool CNewUISystem::LoadMainSceneInterface()
     m_pNewGameMenu = new CNewUIGameMenu;
     if (m_pNewGameMenu->Create(m_pNewUIMng) == false)
         return false;
+
+    m_pNewEventListWindow = new CNewUIEventListWindow;
+    if (m_pNewEventListWindow->Create(m_pNewUIMng, (REFERENCE_WIDTH - CNewUIEventListWindow::GetWindowWidth()) / 2,
+                                      (REFERENCE_HEIGHT - CNewUIEventListWindow::GetWindowHeight()) / 2) == false)
+    {
+        return false;
+    }
 
     m_pNewStorageInventoryExt = new CNewUIStorageInventoryExt;
     if (m_pNewStorageInventoryExt->Create(m_pNewUIMng, 260 - 190, 0) == false)
@@ -591,6 +599,7 @@ void CNewUISystem::UnloadMainSceneInterface()
     SAFE_DELETE(m_pNewGuildInfoWindow);
     SAFE_DELETE(m_pNewBankWindow);
     SAFE_DELETE(m_pNewGameMenu);
+    SAFE_DELETE(m_pNewEventListWindow);
     SAFE_DELETE(m_pNewStorageInventory);
     SAFE_DELETE(m_pNewMixInventory);
     SAFE_DELETE(m_pNewCastleWindow);
@@ -851,6 +860,12 @@ void CNewUISystem::Show(DWORD dwKey)
         // A popup of the hud, so nothing else is put away for it: the player opens the menu to
         // reach a window, and closing what he was looking at first would be the wrong answer.
         g_pGameMenu->OpeningProcess();
+    }
+    else if (dwKey == INTERFACE_EVENT_LIST)
+    {
+        // Asks the server which events it runs. Nothing else is opened or closed with it: the
+        // window only lists what is going on and gets out of the way again.
+        g_pEventListWindow->OpeningProcess();
     }
     else if (dwKey == INTERFACE_BANK)
     {
@@ -1368,6 +1383,10 @@ void CNewUISystem::Hide(DWORD dwKey)
     else if (dwKey == INTERFACE_GAME_MENU)
     {
         g_pGameMenu->ClosingProcess();
+    }
+    else if (dwKey == INTERFACE_EVENT_LIST)
+    {
+        g_pEventListWindow->ClosingProcess();
     }
     else if (dwKey == INTERFACE_BANK)
     {
@@ -2266,6 +2285,11 @@ CNewUIBankWindow* CNewUISystem::GetUI_NewBankWindow() const
 CNewUIGameMenu* CNewUISystem::GetUI_NewGameMenu() const
 {
     return m_pNewGameMenu;
+}
+
+CNewUIEventListWindow* CNewUISystem::GetUI_NewEventListWindow() const
+{
+    return m_pNewEventListWindow;
 }
 
 CNewUIStorageInventory* CNewUISystem::GetUI_NewStorageInventory() const

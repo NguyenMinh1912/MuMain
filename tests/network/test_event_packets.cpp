@@ -10,9 +10,9 @@
 
 namespace
 {
-constexpr int EntryLength = 152;
+constexpr int EntryLength = 208;
 constexpr int NameOffset = 32;
-constexpr int DescriptionOffset = 72;
+constexpr int DescriptionOffset = 80;
 
 /// <summary>Writes an unsigned 32 bit number the way the server writes it.</summary>
 void WriteUInt32(std::vector<BYTE>& packet, const size_t offset, const uint32_t value)

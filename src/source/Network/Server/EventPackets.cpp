@@ -20,12 +20,12 @@ constexpr BYTE SubCodeEventList = 0x01;
 constexpr BYTE SubCodeJoinResult = 0x02;
 
 /// <summary>The byte lengths of the fields which repeat inside the list packet.</summary>
-constexpr int EntryLength = 152;
-constexpr int NameLength = 40;
-constexpr int DescriptionLength = 80;
+constexpr int EntryLength = 208;
+constexpr int NameLength = 48;
+constexpr int DescriptionLength = 128;
 
 /// <summary>The longest string this file converts, plus the terminator.</summary>
-constexpr int MaxConvertedLength = 96;
+constexpr int MaxConvertedLength = 144;
 
 /// <summary>Reads an unsigned 32 bit number which the server wrote in little endian order.</summary>
 uint32_t ReadUInt32(const std::span<const BYTE> data, const int offset)
@@ -87,7 +87,7 @@ void ReadEventList(const std::span<const BYTE> packet, const int offset)
         entry.PlayerCount = packet[start + 30];
         entry.Join = static_cast<JoinMode>(packet[start + 31]);
         entry.Name = ReadString(packet, start + 32, NameLength);
-        entry.Description = ReadString(packet, start + 72, DescriptionLength);
+        entry.Description = ReadString(packet, start + 80, DescriptionLength);
         events.push_back(std::move(entry));
     }
 
